@@ -47,3 +47,7 @@ checkpoints/
 # virtualenv
 venv/
 ENV/
+
+# sub-modules and models
+models/
+tools/refer
