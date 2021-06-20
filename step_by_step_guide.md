@@ -11,8 +11,8 @@ cd vilbert-multi-task
 
 # install some dependencies
 conda install pytorch torchvision cudatoolkit=10.0 -c pytorch
-conda install h5py
-conda install jupyter ninja cython matplotlib pandas
+conda install jupyter ninja cython matplotlib pandas h5py
+conda install -c conda-forge scikit-image
 pip install -r requirements.txt
 pip install yacs
 
@@ -58,13 +58,15 @@ cd vqa-maskrcnn-benchmark
 python setup.py build develop
 
 # install refer
+cd $INSTALL_DIR/vilbert-multi-task/tools/
 git clone https://github.com/lichengunc/refer.git
 cd refer
+git checkout python3
 make
 
 # install vilbert-multi-task
 cd $INSTALL_DIR/vilbert-multi-task/
-python setup.py develop
+python setup.py build develop
 
 # the config files for extracting features
 cd INSTALL_DIR/vilbert-multi-task/data
@@ -101,7 +103,7 @@ python script/convert_to_lmdb.py --features_dir data/rawdatasets/flickr30k/image
 # add this new task in vilbert/dataset/__init__.py
 # run train task 
 
-nohup python train_tasks.py --bert_model bert-base-uncased --from_pretrained models/pretrained_model.bin --config_file config/bert_base_6layer_6conect.json --tasks 19 --lr_scheduler 'warmup_linear' --train_iter_gap 4 --task_specific_name_tokens --save_name flickr30k_finetune_copy >> out.log 2>&1 &
+nohup python train_tasks.py --bert_model bert-base-uncased --from_pretrained models/pretrained_model.bin --config_file config/bert_base_6layer_6conect.json --tasks 19 --lr_scheduler 'warmup_linear' --train_iter_gap 4 --task_specific_tokens --save_name flickr30k_finetune_copy >> out.log 2>&1 &
 
 
 

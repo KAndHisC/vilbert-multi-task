@@ -68,8 +68,6 @@ DatasetMapTrain = {
     "Visual7w": Visual7wPointingDataset,
     "GuessWhatPointing": GuessWhatPointingDataset,
     "FlickrGrounding": FlickrGroundingDataset,
-    "RetrievalFlickr30kCopy": RetreivalDataset,
-    "MyRetrievalFlickr30k": RetreivalDataset,
 }
 
 
@@ -92,6 +90,4 @@ DatasetMapEval = {
     "Visual7w": Visual7wPointingDataset,
     "GuessWhatPointing": GuessWhatPointingDataset,
     "FlickrGrounding": FlickrGroundingDataset,
-    "RetrievalFlickr30kCopy": RetreivalDatasetVal,
-    "MyRetrievalFlickr30k": RetreivalDatasetVal,
 }
