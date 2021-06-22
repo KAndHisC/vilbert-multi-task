@@ -75,7 +75,7 @@ wget https://dl.fbaipublicfiles.com/vilbert-multi-task/detectron_config.yaml
 
 # to get pretrain datasets 
 cd INSTALL_DIR/vilbert-multi-task/data/
-wget https://dl.fbaipublicfiles.com/vilbert-multi-task/datasets.tar.gz
+wget https://dl.fbaipublicfiles.com/vilbert-multi-task/datasets.tar.gz 
 tar xf datasets.tar.gz
 
 
@@ -86,7 +86,8 @@ mkdir .kaggle
 cd ~/.kaggle/
 touch kaggle.json # then put your kaggle-api-token in this file
 cd cd INSTALL_DIR/vilbert-multi-task/data/
-mkdir rawdatasets
+mkdir rawdatasls
+ets
 cd rawdatasets
 kaggle datasets download -d hsankesara/flickr-image-dataset
 unzip flickr-image-dataset.zip
