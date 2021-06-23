@@ -6,11 +6,38 @@ export INSTALL_DIR=$PWD
 cd $INSTALL_DIR
 conda create -n vilbert-mt python=3.6
 conda activate vilbert-mt
+mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+mkdir -p $CONDA_PREFIX/etc/conda/deactivate.d
+
+touch $CONDA_PREFIX//etc/conda/activate.d/env_vars.sh
+touch $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
+
+#### you can add any environment variables if you want into activate.d/env_vars.sh
+#### unset those environment variables into deactivate.d/env_vars.sh
+
+# example, add IPU libs into environment variables
+cat>filename.txt<<EOF
+#!/bin/bash
+export GCDA_MONITOR=1
+export TF_CPP_VMODULE="poplar_compiler=1"
+export TF_POPLAR_FLAGS="--max_compilation_threads=40 --executable_cache_path=/<your_cachedir>"
+export TMPDIR="/<your_tmpdir>"
+export POPLAR_LOG_LEVEL=INFO
+
+source /<your_popart_path>/enable.sh
+source /<your_poplar_path>/enable.sh
+EOF
+
+# activate virtuel env again
+conda activate vilbert-mt
+
+# get project
 git clone --recursive https://github.com/facebookresearch/vilbert-multi-task.git
 cd vilbert-multi-task
 
 # install some dependencies
-conda install pytorch torchvision cudatoolkit=10.0 -c pytorch
+#### install poptorch from whl in SDK -- 
+conda install pytorch torchvision torchaudio cpuonly -c pytorch
 conda install jupyter ninja cython matplotlib pandas h5py
 conda install -c conda-forge scikit-image
 pip install -r requirements.txt
