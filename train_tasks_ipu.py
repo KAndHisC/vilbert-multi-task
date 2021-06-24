@@ -217,6 +217,11 @@ def main():
         action="store_true",
         help="whether to use task specific tokens for the multi-task learning.",
     )
+    parser.add_argument(
+        "--enable_ipu",
+        action="store_true",
+        help="whether to use IPU to train this model.",
+    )
 
     args = parser.parse_args()
     with open("vilbert_tasks.yml", "r") as f:
@@ -226,6 +231,7 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
+    # cudnn is not supported in IPU
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -507,6 +513,13 @@ def main():
 
     task_iter_train = {name: None for name in task_ids}
     task_count = {name: 0 for name in task_ids}
+    
+    if args.enable_ipu:
+        import poptorch
+        # poptorch options
+        opts = poptorch.Options()
+        poptorch_model = poptorch.trainingModel(model, options=opts, optimizer=optimizer)
+
     for epochId in tqdm(range(start_epoch, args.num_train_epochs), desc="Epoch"):
         model.train()
         torch.autograd.set_detect_anomaly(True)

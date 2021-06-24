@@ -16,7 +16,7 @@ touch $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
 #### unset those environment variables into deactivate.d/env_vars.sh
 
 # example, add IPU libs into environment variables
-cat>filename.txt<<EOF
+cat>$CONDA_PREFIX//etc/conda/activate.d/env_vars.sh<<EOF
 #!/bin/bash
 export GCDA_MONITOR=1
 export TF_CPP_VMODULE="poplar_compiler=1"
@@ -28,6 +28,11 @@ source /<your_popart_path>/enable.sh
 source /<your_poplar_path>/enable.sh
 EOF
 
+cat>$CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh<<EOF
+#!/bin/bash
+unset POPLAR_SDK_ENABLED
+EOF
+
 # activate virtuel env again
 conda activate vilbert-mt
 
@@ -35,22 +40,26 @@ conda activate vilbert-mt
 git clone --recursive https://github.com/facebookresearch/vilbert-multi-task.git
 cd vilbert-multi-task
 
+# install libcap-dev. Example in ubuntu is following.
+apt-get install build-essential libcap-dev
 # install some dependencies
-#### install poptorch from whl in SDK -- 
-conda install pytorch torchvision torchaudio cpuonly -c pytorch
-conda install jupyter ninja cython matplotlib pandas h5py
+#### install poptorch/tensorflow2 from whl in SDK --
+conda install  torchvision torchaudio cpuonly -c pytorch
+conda install jupyter ninja cython matplotlib pandas h5py tqdm
 conda install -c conda-forge scikit-image
 pip install -r requirements.txt
-pip install yacs
 
-# install apex
+<!-- # install apex  
 cd $INSTALL_DIR
 git clone https://github.com/NVIDIA/apex
 cd apex
 source /fsx/sw_pkgs/envs.cuda.10.0 # in our aws default path referce to CUDA 9, need changed to 10.0
 python setup.py install --cuda_ext --cpp_ext
-pip install -v --disable-pip-version-check --use-feature=in-tree-build --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./
+pip install -v --disable-pip-version-check --use-feature=in-tree-build --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./ -->
+# Half and mixed precision is supported in PopTorch.
 
+
+# Others are used to extracted features, which are needn't now.
 # install pycocotools
 cd $INSTALL_DIR
 git clone https://github.com/cocodataset/cocoapi.git
@@ -84,6 +93,7 @@ git clone https://gitlab.com/vedanuj/vqa-maskrcnn-benchmark.git
 cd vqa-maskrcnn-benchmark
 python setup.py build develop
 
+# after this line are needed.
 # install refer
 cd $INSTALL_DIR/vilbert-multi-task/tools/
 git clone https://github.com/lichengunc/refer.git
