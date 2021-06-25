@@ -246,7 +246,7 @@ def main():
 
     no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
 
-    print("***** Running training *****")
+    print("***** Running eval *****")
     print("  Num Iters: ", task_num_iters)
     print("  Batch size: ", task_batch_size)
 
@@ -269,13 +269,17 @@ def main():
             task_tokens = (
                 question.new().resize_(question.size(0), 1).fill_(int(task_id[4:]))
             )
-
-            if task_id in ["TASK7", "TASK8"]:
+            # print(task_tokens) # tensor([[19]], device='cuda:0')
+            # print(question)
+            # print(question.size())
+            # print(question.new().resize_(question.size(0), 1))
+            # print(question.new().resize_(question.size(0), 1).fill_(int(task_id[4:])))
+            if task_id in ["TASK7", "TASK8", "TASK19", "TASK20"]:
                 batch_size = features.size(0)
                 features = features.squeeze(0)
                 spatials = spatials.squeeze(0)
                 image_mask = image_mask.squeeze(0)
-
+            
             with torch.no_grad():
                 if args.zero_shot:
                     _, _, vil_logit, _ = model(
@@ -296,6 +300,7 @@ def main():
                     ] = (target.view(-1).float().cpu().numpy())
 
                 else:
+                    print(task_tokens)
                     _, _, vil_logit, _, _, _, _, _, _ = model(
                         question,
                         features,
