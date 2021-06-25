@@ -23,6 +23,9 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 
+import poptorch
+import ipu_options
+        
 from pytorch_transformers.optimization import (
     AdamW,
     WarmupConstantSchedule,
@@ -30,7 +33,7 @@ from pytorch_transformers.optimization import (
 )
 
 from vilbert.optimization import RAdam
-from vilbert.task_utils import (
+from vilbert_ipu.task_utils_ipu import (
     LoadDatasets,
     LoadLosses,
     ForwardModelsTrain,
@@ -52,7 +55,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
-
+opts = ipu_options.opts
 
 def main():
     parser = argparse.ArgumentParser()
@@ -108,21 +111,21 @@ def main():
         help="Proportion of training to perform linear learning rate warmup for."
         "E.g., 0.1 = 10%% of training.",
     )
-    parser.add_argument(
-        "--no_cuda", action="store_true", help="Whether not to use CUDA when available"
-    )
+    # parser.add_argument(
+    #     "--no_cuda", action="store_true", help="Whether not to use CUDA when available"
+    # )
     parser.add_argument(
         "--do_lower_case",
         default=True,
         type=bool,
         help="Whether to lower case the input text. True for uncased models, False for cased models.",
     )
-    parser.add_argument(
-        "--local_rank",
-        type=int,
-        default=-1,
-        help="local_rank for distributed training on gpus",
-    )
+    # parser.add_argument(
+    #     "--local_rank",
+    #     type=int,
+    #     default=-1,
+    #     help="local_rank for distributed training on gpus",
+    # )
     parser.add_argument(
         "--seed", type=int, default=0, help="random seed for initialization"
     )
@@ -217,11 +220,6 @@ def main():
         action="store_true",
         help="whether to use task specific tokens for the multi-task learning.",
     )
-    parser.add_argument(
-        "--enable_ipu",
-        action="store_true",
-        help="whether to use IPU to train this model.",
-    )
 
     args = parser.parse_args()
     with open("vilbert_tasks.yml", "r") as f:
@@ -232,15 +230,15 @@ def main():
     torch.manual_seed(args.seed)
 
     # cudnn is not supported in IPU
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
 
     if args.baseline:
         from pytorch_transformers.modeling_bert import BertConfig
-        from vilbert.basebert import BaseBertForVLTasks
+        from vilbert_ipu.task_utils_ipu import BaseBertForVLTasksWithLoss
     else:
         from vilbert.vilbert import BertConfig
-        from vilbert.vilbert import VILBertForVLTasks
+        from vilbert_ipu.task_utils_ipu import VILBertForVLTasksWithLoss
 
     task_names = []
     task_lr = []
@@ -272,30 +270,33 @@ def main():
         open("config/" + args.bert_model + "_weight_name.json", "r")
     )
 
-    if args.local_rank == -1 or args.no_cuda:
-        device = torch.device(
-            "cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu"
-        )
-        n_gpu = torch.cuda.device_count()
-    else:
-        torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
-        n_gpu = 1
-        torch.distributed.init_process_group(backend="nccl")
+    # needn't setting in ipu
+    # if args.local_rank == -1 or args.no_cuda:
+    #     device = torch.device(
+    #         "cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu"
+    #     )
+    #     n_gpu = torch.cuda.device_count()
+    # else:
+    #     torch.cuda.set_device(args.local_rank)
+    #     device = torch.device("cuda", args.local_rank)
+    #     n_gpu = 1
+    #     torch.distributed.init_process_group(backend="nccl")
+    
+    # logger.info(
+    #     "device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(
+    #         device, n_gpu, bool(args.local_rank != -1), args.fp16
+    #     )
+    # )
 
-    logger.info(
-        "device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(
-            device, n_gpu, bool(args.local_rank != -1), args.fp16
-        )
-    )
+    # takiw commented: This var is used in everywhere and hard to edit, so just set it to True.
 
-    default_gpu = False
-    if dist.is_available() and args.local_rank != -1:
-        rank = dist.get_rank()
-        if rank == 0:
-            default_gpu = True
-    else:
-        default_gpu = True
+    default_gpu = True
+    # if dist.is_available() and args.local_rank != -1:
+    #     rank = dist.get_rank()
+    #     if rank == 0:
+    #         default_gpu = True
+    # else:
+    #     default_gpu = True
 
     if default_gpu:
         if not os.path.exists(savePath):
@@ -310,7 +311,7 @@ def main():
             print(config, file=f)
 
     task_batch_size, task_num_iters, task_ids, task_datasets_train, task_datasets_val, task_dataloader_train, task_dataloader_val = LoadDatasets(
-        args, task_cfg, args.tasks.split("-")
+        args, task_cfg, opts, args.tasks.split("-")
     )
 
     logdir = os.path.join(savePath, "logs")
@@ -365,22 +366,24 @@ def main():
     if "roberta" in args.bert_model:
         config.model = "roberta"
 
+    task_losses = LoadLosses(args, task_cfg, args.tasks.split("-"))
     if args.baseline:
-        model = BaseBertForVLTasks.from_pretrained(
+        model = BaseBertForVLTasksWithLoss.from_pretrained(
             args.from_pretrained,
             config=config,
             num_labels=num_labels,
             default_gpu=default_gpu,
+            losses = task_losses,
         )
     else:
-        model = VILBertForVLTasks.from_pretrained(
+        model = VILBertForVLTasksWithLoss.from_pretrained(
             args.from_pretrained,
             config=config,
             num_labels=num_labels,
             default_gpu=default_gpu,
+            losses = task_losses,
         )
 
-    task_losses = LoadLosses(args, task_cfg, args.tasks.split("-"))
 
     no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
 
@@ -486,24 +489,24 @@ def main():
         tbLogger = checkpoint["tb_logger"]
         del checkpoint
 
-    model.to(device)
+    # model.to(device)
+    # for state in optimizer.state.values():
+    #     for k, v in state.items():
+    #         if torch.is_tensor(v):
+    #             state[k] = v.cuda()
 
-    for state in optimizer.state.values():
-        for k, v in state.items():
-            if torch.is_tensor(v):
-                state[k] = v.cuda()
+    # apex needn't in IPU
+    # if args.local_rank != -1:
+    #     try:
+    #         from apex.parallel import DistributedDataParallel as DDP
+    #     except ImportError:
+    #         raise ImportError(
+    #             "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training."
+    #         )
+    #     model = DDP(model, delay_allreduce=True)
 
-    if args.local_rank != -1:
-        try:
-            from apex.parallel import DistributedDataParallel as DDP
-        except ImportError:
-            raise ImportError(
-                "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training."
-            )
-        model = DDP(model, delay_allreduce=True)
-
-    elif n_gpu > 1:
-        model = torch.nn.DataParallel(model)
+    # elif n_gpu > 1:
+    #     model = torch.nn.DataParallel(model)
 
     if default_gpu:
         print("***** Running training *****")
@@ -514,11 +517,10 @@ def main():
     task_iter_train = {name: None for name in task_ids}
     task_count = {name: 0 for name in task_ids}
     
-    if args.enable_ipu:
-        import poptorch
-        # poptorch options
-        opts = poptorch.Options()
-        poptorch_model = poptorch.trainingModel(model, options=opts, optimizer=optimizer)
+    
+       
+    # start train
+    poptorch_model = poptorch.trainingModel(model, options=opts, optimizer=optimizer)
 
     for epochId in tqdm(range(start_epoch, args.num_train_epochs), desc="Epoch"):
         model.train()

@@ -15,15 +15,17 @@
 import logging
 import poptorch
 
-logger = logging.getLogger(__name__)
 
-
-def get_options(config):
+def get_options(config)->poptorch.Options:
+    logger = logging.getLogger(__name__)
     '''
     Set ipu specific options for the model, see documentation:
     https://docs.graphcore.ai/en/latest/
     '''
-
-
-
+    if poptorch.ipuHardwareVersion() != 2:
+        raise RuntimeError("This version of BERT requires an IPU Mk2 system to run.")
+    ## TODO--
+    custom_opts = poptorch.Options()
     return opts
+
+opts = get_options()
