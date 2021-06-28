@@ -58,7 +58,7 @@ def main():
         "--from_pretrained",
         default="bert-base-uncased",
         type=str,
-        help="Bert pre-trained model selected in the list: bert-base-uncased, "
+        help="path to the fine-tuned model or Bert pre-trained model selected in the list: bert-base-uncased, "
         "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.",
     )
     parser.add_argument(
@@ -156,7 +156,7 @@ def main():
     torch.manual_seed(args.seed)
 
     if args.baseline:
-        from pytorch_pretrained_bert.modeling import BertConfig
+        from pytorch_transformers.modeling_bert import BertConfig
     else:
         from vilbert.vilbert import BertConfig
 
@@ -231,6 +231,7 @@ def main():
         )
 
     task_losses = LoadLosses(args, task_cfg, args.tasks.split("-"))
+    torch.cuda.empty_cache()
     model.to(device)
     if args.local_rank != -1:
         try:
@@ -242,12 +243,12 @@ def main():
         model = DDP(model, deay_allreduce=True)
 
     # it will cause a wrong when computing the indexes of score_matrix 
-    # elif n_gpu > 1:
-    #     model = nn.DataParallel(model)
+    elif n_gpu > 1:
+        model = nn.DataParallel(model)
 
     no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
 
-    print("***** Running eval *****")
+    print("***** Running training *****")
     print("  Num Iters: ", task_num_iters)
     print("  Batch size: ", task_batch_size)
 
@@ -257,9 +258,13 @@ def main():
         results = []
         others = []
 
-        score_matrix = np.zeros((5000, 1000))
-        target_matrix = np.zeros((5000, 1000))
-        rank_matrix = np.ones((5000)) * 1000
+        noimg = len(task_datasets_val[task_id]._image_entries)
+        index = int(noimg / 2)
+        nocap = len(task_datasets_val[task_id]._caption_entries)
+
+        score_matrix = np.zeros((nocap, noimg))  # 5000,1000
+        target_matrix = np.zeros((nocap, noimg))
+        rank_matrix = np.ones((nocap)) * noimg
         count = 0
 
         for i, batch in enumerate(task_dataloader_val[task_id]):
@@ -306,14 +311,25 @@ def main():
                         image_mask,
                         task_ids=task_tokens,
                     )
-                    score_matrix[
-                        caption_idx, image_idx * 500 : (image_idx + 1) * 500
-                    ] = (vil_logit.view(-1).cpu().numpy())
-                    target_matrix[
-                        caption_idx, image_idx * 500 : (image_idx + 1) * 500
-                    ] = (target.view(-1).float().cpu().numpy())
+
+                    if image_idx == 0:
+                        score_matrix[
+                        caption_idx, image_idx * index: (image_idx + 1) * index
+                        ] = (vil_logit.view(-1).cpu().numpy())
+                        target_matrix[
+                        caption_idx, image_idx * index: (image_idx + 1) * index
+                        ] = (target.view(-1).float().cpu().numpy())
+                    else:
+                        score_matrix[
+                        caption_idx, image_idx * index:
+                        ] = (vil_logit.view(-1).cpu().numpy())
+                        target_matrix[
+                        caption_idx, image_idx * index:
+                        ] = (target.view(-1).float().cpu().numpy())
 
                 if image_idx.item() == 1:
+                    _, preds = torch.max(torch.from_numpy(score_matrix[caption_idx]).unsqueeze(0), 1)
+
                     rank = np.where(
                         (
                             np.argsort(-score_matrix[caption_idx])

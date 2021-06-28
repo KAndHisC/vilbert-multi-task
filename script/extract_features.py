@@ -212,6 +212,7 @@ class FeatureExtractor:
         np.save(os.path.join(self.args.output_folder, file_base_name), info)
 
     def extract_features(self):
+        f_list = []
         image_dir = self.args.image_dir
         if os.path.isfile(image_dir):
             features, infos = self.get_detectron_features([image_dir])
@@ -225,8 +226,22 @@ class FeatureExtractor:
                     features, infos = self.get_detectron_features(chunk)
                     for idx, file_name in enumerate(chunk):
                         self._save_feature(file_name, features[idx], infos[idx])
+                        # Elahe
+                        #file_base_name = os.path.basename(file_name)
+                        #file_base_name = file_base_name.split(".")[0]
+                        #f_list.append(
+                        #    {
+                        #        "file_name": file_base_name,
+                        #        "file_path": file_name,
+                        #        "bbox": infos[idx]['bbox'],
+                        #        "num_box": infos[idx]['num_boxes']
+                        #    }
+                        #)
+
                 except BaseException:
                     continue
+            #Elahe
+            #np.save(os.path.join(self.args.output_folder, 'allimages.npy'), f_list)
 
 
 if __name__ == "__main__":

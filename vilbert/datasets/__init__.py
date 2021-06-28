@@ -13,7 +13,7 @@ from .vqa_dataset import VQAClassificationDataset
 from .vqa_mc_dataset import VQAMultipleChoiceDataset
 from .nlvr2_dataset import NLVR2Dataset
 from .refer_expression_dataset import ReferExpressionDataset
-from .retreival_dataset import RetreivalDataset, RetreivalDatasetVal
+from .retreival_dataset import RetreivalDataset, RetreivalDatasetVal, RetreivalDatasetTrans
 from .vcr_dataset import VCRDataset
 from .visdial_dataset import VisDialDataset
 from .visual_entailment_dataset import VisualEntailmentDataset
@@ -46,7 +46,6 @@ __all__ = [
     "Visual7wPointingDataset",
     "GuessWhatPointingDataset",
     "FlickrGroundingDataset",
-    "",
 ]
 
 DatasetMapTrain = {
@@ -90,4 +89,9 @@ DatasetMapEval = {
     "Visual7w": Visual7wPointingDataset,
     "GuessWhatPointing": GuessWhatPointingDataset,
     "FlickrGrounding": FlickrGroundingDataset,
+}
+
+
+DatasetMapTrans = {
+    "RetrievalFlickr30k": RetreivalDatasetTrans,
 }

@@ -68,7 +68,7 @@ def main():
         "--from_pretrained",
         default="bert-base-uncased",
         type=str,
-        help="Bert pre-trained model selected in the list: bert-base-uncased, "
+        help="VILBert pre-trained model selected in the list: multi_task_model.bin, pretrained_model.bin. or Bert pre-trained model selected in the list: bert-base-uncased, "
         "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.",
     )
     parser.add_argument(
@@ -152,7 +152,7 @@ def main():
         help="Number of workers in the dataloader.",
     )
     parser.add_argument(
-        "--save_name", default="", type=str, help="save name for training."
+        "--save_name", default="finetune_from_multi_task_model", type=str, help="save name for training."
     )
     parser.add_argument(
         "--in_memory",
@@ -182,7 +182,7 @@ def main():
     )
     parser.add_argument(
         "--lr_scheduler",
-        default="mannul",
+        default='warmup_linear',  # "mannul",
         type=str,
         help="whether use learning rate scheduler.",
     )
@@ -212,6 +212,14 @@ def main():
         1: regress the feature, \
         2: NCE loss.",
     )
+
+    parser.add_argument(
+        "--frequency_iter",
+        default=100,
+        type=int,
+        help="",
+    )
+
     parser.add_argument(
         "--task_specific_tokens",
         action="store_true",
@@ -219,7 +227,7 @@ def main():
     )
 
     args = parser.parse_args()
-    with open("vilbert_tasks.yml", "r") as f:
+    with open("./vilbert_tasks.yml", "r") as f:
         task_cfg = edict(yaml.safe_load(f))
 
     random.seed(args.seed)
@@ -583,8 +591,8 @@ def main():
             for task_id in task_ids:
                 if (iterId != 0 and iterId % task_num_iters[task_id] == 0) or (
                     epochId == args.num_train_epochs - 1 and step == median_num_iter - 1
-                ):
-                    evaluate(
+                ) or (iterId != 0 and iterId % args.frequency_iter == 0):
+                    val_scores = evaluate(
                         args,
                         task_dataloader_val,
                         task_stop_controller,
@@ -597,6 +605,7 @@ def main():
                         default_gpu,
                         tbLogger,
                     )
+                    # print(val_scores)
 
         if args.lr_scheduler == "automatic":
             lr_scheduler.step(sum(val_scores.values()))
@@ -667,6 +676,7 @@ def evaluate(
     score = tbLogger.showLossVal(task_id, task_stop_controller)
     model.train()
 
+    return score
 
 if __name__ == "__main__":
 

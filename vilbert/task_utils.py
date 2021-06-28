@@ -16,7 +16,7 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader, Dataset, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from pytorch_transformers.tokenization_bert import BertTokenizer
-from vilbert.datasets import DatasetMapTrain, DatasetMapEval
+from vilbert.datasets import DatasetMapTrain, DatasetMapEval, DatasetMapTrans
 from vilbert.datasets._image_features_reader import ImageFeaturesH5Reader
 import pdb
 
@@ -108,6 +108,7 @@ def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses)
     task_tokens = question.new().resize_(question.size(0), 1).fill_(int(task_id[4:]))
 
     vil_prediction, vil_prediction_gqa, vil_logit, vil_binary_prediction, vil_tri_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit, _ = model(
+    # vil_logit = model(
         question,
         features,
         spatials,
@@ -311,6 +312,7 @@ def ForwardModelsTrain(
 
     task_tokens = question.new().resize_(question.size(0), 1).fill_(int(task_id[4:]))
     vil_prediction, vil_prediction_gqa, vil_logit, vil_binary_prediction, vil_tri_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit, _ = model(
+    # vil_logit = model(
         question,
         features,
         spatials,
@@ -857,3 +859,81 @@ def EvaluatingModel(
         batch_score = compute_score_with_logits(vil_tri_prediction, target).sum()
 
     return float(loss), float(batch_score), batch_size, results, others
+
+
+def LoadDatasetTransfer(args, task_cfg, id):
+
+    tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=True)
+
+    task_feature_reader1 = {}
+    task_feature_reader2 = {}
+
+    task = "TASK" + id
+    if task_cfg[task]["features_h5path1"] not in task_feature_reader1:
+        task_feature_reader1[task_cfg[task]["features_h5path1"]] = None
+    if task_cfg[task]["features_h5path2"] not in task_feature_reader2:
+        task_feature_reader2[task_cfg[task]["features_h5path2"]] = None
+
+    # initilzie the feature reader
+    for features_h5path in task_feature_reader1.keys():
+        if features_h5path != "":
+            task_feature_reader1[features_h5path] = ImageFeaturesH5Reader(
+                features_h5path, args.in_memory
+            )
+
+    for features_h5path in task_feature_reader2.keys():
+        if features_h5path != "":
+            task_feature_reader2[features_h5path] = ImageFeaturesH5Reader(
+                features_h5path, args.in_memory
+            )
+
+    task_datasets_val = {}
+    task_dataloader_val = {}
+    task_batch_size = {}
+    task_num_iters = {}
+
+    task_ids = task
+    task_name = task_cfg[task]["name"]
+    batch_size = args.batch_size
+    if args.local_rank != -1:
+        batch_size = int(batch_size / dist.get_world_size())
+
+    logger.info(
+        "Loading %s Dataset with batch size %d"
+        % (task_cfg[task]["name"], batch_size)
+    )
+
+    task_datasets_val[task] = DatasetMapTrans[task_name](
+        task=task_cfg[task]["name"],
+        dataroot=task_cfg[task]["dataroot"],
+        annotations_jsonpath=task_cfg[task]["trans_annotations_jsonpath"],
+        image_features_reader=task_feature_reader1[
+            task_cfg[task]["features_h5path1"]
+        ],
+        gt_image_features_reader=task_feature_reader2[
+            task_cfg[task]["features_h5path2"]
+        ],
+        tokenizer=tokenizer,
+        bert_model=args.bert_model,
+        padding_index=0,
+        max_seq_length=task_cfg[task]["max_seq_length"],
+        max_region_num=task_cfg[task]["max_region_num"],
+    )
+
+    task_dataloader_val[task] = DataLoader(
+        task_datasets_val[task],
+        shuffle=False,
+        batch_size=batch_size,
+        pin_memory=True,
+    )
+
+    task_num_iters[task] = len(task_dataloader_val[task])
+    task_batch_size[task] = batch_size
+
+    return (
+        task_batch_size,
+        task_num_iters,
+        task_ids,
+        task_datasets_val,
+        task_dataloader_val,
+    )

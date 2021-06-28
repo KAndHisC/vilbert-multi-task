@@ -1661,7 +1661,7 @@ class VILBertForVLTasks(BertPreTrainedModel):
             output_all_encoded_layers=output_all_encoded_layers,
             output_all_attention_masks=output_all_attention_masks,
         )
-
+        # it seems just the vil_logit is useful?
         vil_prediction = 0
         vil_logit = 0
         vil_binary_prediction = 0
@@ -1693,7 +1693,7 @@ class VILBertForVLTasks(BertPreTrainedModel):
             (1.0 - image_attention_mask) * -10000.0
         ).unsqueeze(2).to(dtype=next(self.parameters()).dtype)
         linguisic_logit = self.linguisic_logit(self.dropout(sequence_output_t))
-
+        # return vil_logit
         return (
             vil_prediction,
             vil_prediction_gqa,
@@ -1706,6 +1706,36 @@ class VILBertForVLTasks(BertPreTrainedModel):
             linguisic_logit,
             all_attention_mask,
         )
+
+    def getembedding(
+        self,
+        input_txt,
+        input_imgs,
+        image_loc,
+        token_type_ids=None,
+        attention_mask=None,
+        image_attention_mask=None,
+        co_attention_mask=None,
+        task_ids=None,
+        output_all_encoded_layers=True,
+        output_all_attention_masks=False,
+        layerno=-1,
+    ):
+
+        sequence_output_t, sequence_output_v, pooled_output_t, pooled_output_v, all_attention_mask = self.bert(
+            input_txt,
+            input_imgs,
+            image_loc,
+            token_type_ids,
+            attention_mask,
+            image_attention_mask,
+            co_attention_mask,
+            task_ids,
+            output_all_encoded_layers=output_all_encoded_layers,
+            output_all_attention_masks=output_all_attention_masks,
+        )
+
+        return sequence_output_t[layerno][:, 0], sequence_output_v[layerno][:, 0]
 
 
 class SimpleClassifier(nn.Module):
