@@ -27,11 +27,12 @@ import poptorch
 import ipu_options
         
 from pytorch_transformers.optimization import (
-    AdamW,
+    # AdamW,
     WarmupConstantSchedule,
     WarmupLinearSchedule,
-    warmup_linear
 )
+
+from poptorch.optim import AdamW
 
 from vilbert.optimization import RAdam
 from vilbert_ipu.task_utils_ipu import (
@@ -150,7 +151,7 @@ def main():
     parser.add_argument(
         "--num_workers",
         type=int,
-        default=16,
+        default=8,
         help="Number of workers in the dataloader.",
     )
     parser.add_argument(
@@ -237,10 +238,10 @@ def main():
     else:
         from vilbert.vilbert import BertConfig
 
-    ids = args.tasks.split("-")
+    indexes = args.tasks.split("-")
     task_names = [] 
     task_ids = []
-    for i, task_id in enumerate(ids):
+    for i, task_id in enumerate(indexes):
         task = "TASK" + task_id
         task_ids.append(task)
         name = task_cfg[task]["name"]
@@ -302,7 +303,7 @@ def main():
         print(config, file=f)
 
     task_batch_size, task_num_iters, task_datasets_train, task_datasets_val, task_dataloader_train, task_dataloader_val = LoadDatasets(
-        args, task_cfg, opts, task_ids
+        args, task_cfg, task_ids, opts
     )
 
     logdir = os.path.join(savePath, "logs")
@@ -358,14 +359,14 @@ def main():
         config.model = "roberta"
 
     
-    if args.baseline:
-        model = PipelinedWithLossForVLTasks(
-            config=config,
-            args = args,
-            num_labels=num_labels,
-            task_cfg = task_cfg,
-            task_ids = task_ids
-        )
+    
+    model = PipelinedWithLossForVLTasks(
+        config=config,
+        args = args,
+        num_labels=num_labels,
+        task_cfg = task_cfg,
+        task_ids = task_ids
+    )
 
 
     no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
@@ -390,6 +391,9 @@ def main():
         print(bert_weight_name_filtered)
 
     optimizer_grouped_parameters = []
+    if len(list(model.named_parameters()))==0:
+        print('**** no model loaded! ****')
+        exit()
     for key, value in dict(model.named_parameters()).items():
         if value.requires_grad:
             if "vil_" in key:
@@ -415,7 +419,8 @@ def main():
     print(len(list(model.named_parameters())), len(optimizer_grouped_parameters))
 
     if args.optim == "AdamW":
-        optimizer = AdamW(optimizer_grouped_parameters, lr=model.base_lr, correct_bias=False)
+        # optimizer = AdamW(optimizer_grouped_parameters, lr=model.base_lr, correct_bias=False)
+        optimizer = AdamW(optimizer_grouped_parameters, lr=model.base_lr, bias_correction=False)
     elif args.optim == "RAdam":
         optimizer = RAdam(optimizer_grouped_parameters, lr=model.base_lr)
 
@@ -513,6 +518,8 @@ def main():
             iterId = startIterID + step + (epochId * median_num_iter)
             first_task = True
             for task_id in task_ids:
+                # IPU cannot support str type, so it should set task_id in model then we can use it to choose different condition for tasks
+                model.set_task_id(task_id)
                 model.train()
                 is_forward = False
                 if (not task_stop_controller[task_id].in_stop) or (
@@ -526,24 +533,21 @@ def main():
                     task_iter_train[task_id] = iter(task_dataloader_train[task_id])
 
                 task_count[task_id] += 1
-
-                # get the batch
-                batch = task_iter_train[task_id].next()
                 if is_forward:
                     score, loss = poptorch_model(
-                        task_id,
-                        batch
+                        tuple(task_iter_train[task_id].next()) # get the batch
                     )
 
                     # loss.backward() # IPU will auto backforward
                     if (step + 1) % args.gradient_accumulation_steps == 0:
-                        if args.fp16:
-                            lr_this_step = args.learning_rate * warmup_linear(
-                                global_step / num_train_optimization_steps,
-                                args.warmup_proportion,
-                            )
-                            for param_group in optimizer.param_groups:
-                                param_group["lr"] = lr_this_step
+                        # TODO-- cannot find warmup_linear()
+                        # if args.fp16:
+                        #     lr_this_step = args.learning_rate * warmup_linear(
+                        #         global_step / num_train_optimization_steps,
+                        #         args.warmup_proportion,
+                        #     )
+                        #     for param_group in optimizer.param_groups:
+                        #         param_group["lr"] = lr_this_step
 
                         # optimizer.step() 
                         # model.zero_grad()
@@ -552,6 +556,7 @@ def main():
                             or args.lr_scheduler == "warmup_linear"
                         ):
                             warmup_scheduler.step()
+                            poptorch_model.setOptimizer(optimizer)
                         if first_task:
                             global_step += 1
                             first_task = False
@@ -569,7 +574,7 @@ def main():
 
             if "cosine" in args.lr_scheduler and global_step > warmpu_steps:
                 lr_scheduler.step()
-
+                poptorch_model.setOptimizer(optimizer)
             if (
                 step % (20 * args.gradient_accumulation_steps) == 0
                 and step != 0
@@ -579,15 +584,13 @@ def main():
 
             # decided whether to evaluate on each tasks.
             for task_id in task_ids:
+                model.set_task_id(task_id)
                 if (iterId != 0 and iterId % task_num_iters[task_id] == 0) or (
                     epochId == args.num_train_epochs - 1 and step == median_num_iter - 1
                 ):
                     model.eval()
                     for i, batch in enumerate(task_dataloader_val[task_id]):
-                        batch_score, batch_size, _, loss = poptorch_model(
-                                                    task_id,
-                                                    batch
-                                                )
+                        _, batch_size, _, loss = poptorch_model(batch)
                         tbLogger.step_val(
                             epochId, float(loss), float(score), task_id, batch_size, "val"
                         )
@@ -602,9 +605,11 @@ def main():
 
         if args.lr_scheduler == "automatic":
             lr_scheduler.step(sum(tbLogger.showLossValAll().values()))
+            poptorch_model.setOptimizer(optimizer)
             logger.info("best average score is %3f" % lr_scheduler.best)
         elif args.lr_scheduler == "mannul":
             lr_scheduler.step()
+            poptorch_model.setOptimizer(optimizer)
 
         if epochId in lr_reduce_list:
             for task_id in task_ids:
