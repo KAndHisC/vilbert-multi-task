@@ -509,7 +509,8 @@ def main():
     # # # # # # # # #   
     #  start train  #
     # # # # # # # # #
-    poptorch_model = poptorch.trainingModel(model, options=opts, optimizer=optimizer)
+    train_model = poptorch.trainingModel(model, options=opts, optimizer=optimizer)
+    inference_model = poptorch.inferenceModel(model, options=opts)
 
     for epochId in tqdm(range(start_epoch, args.num_train_epochs), desc="Epoch"):
         
@@ -534,7 +535,7 @@ def main():
 
                 task_count[task_id] += 1
                 if is_forward:
-                    score, loss = poptorch_model(
+                    score, loss = train_model(
                         tuple(task_iter_train[task_id].next()) # get the batch
                     )
 
@@ -556,7 +557,7 @@ def main():
                             or args.lr_scheduler == "warmup_linear"
                         ):
                             warmup_scheduler.step()
-                            poptorch_model.setOptimizer(optimizer)
+                            train_model.setOptimizer(optimizer)
                         if first_task:
                             global_step += 1
                             first_task = False
@@ -574,7 +575,7 @@ def main():
 
             if "cosine" in args.lr_scheduler and global_step > warmpu_steps:
                 lr_scheduler.step()
-                poptorch_model.setOptimizer(optimizer)
+                train_model.setOptimizer(optimizer)
             if (
                 step % (20 * args.gradient_accumulation_steps) == 0
                 and step != 0
@@ -590,7 +591,7 @@ def main():
                 ):
                     model.eval()
                     for i, batch in enumerate(task_dataloader_val[task_id]):
-                        _, batch_size, _, loss = poptorch_model(batch)
+                        _, batch_size, _, loss = inference_model(batch)
                         tbLogger.step_val(
                             epochId, float(loss), float(score), task_id, batch_size, "val"
                         )
@@ -605,11 +606,11 @@ def main():
 
         if args.lr_scheduler == "automatic":
             lr_scheduler.step(sum(tbLogger.showLossValAll().values()))
-            poptorch_model.setOptimizer(optimizer)
+            train_model.setOptimizer(optimizer)
             logger.info("best average score is %3f" % lr_scheduler.best)
         elif args.lr_scheduler == "mannul":
             lr_scheduler.step()
-            poptorch_model.setOptimizer(optimizer)
+            train_model.setOptimizer(optimizer)
 
         if epochId in lr_reduce_list:
             for task_id in task_ids:

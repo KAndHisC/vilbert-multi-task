@@ -25,7 +25,9 @@ def get_options(config=None)->poptorch.Options:
     if poptorch.ipuHardwareVersion() != 2:
         raise RuntimeError("This version of BERT requires an IPU Mk2 system to run.")
     ## TODO--
-    custom_opts = poptorch.Options().deviceIterations(10).replicationFactor(4)
+    custom_opts = poptorch.Options()
+    custom_opts.deviceIterations(10)
+    custom_opts.replicationFactor(4)
     return custom_opts
 
 opts = get_options()
