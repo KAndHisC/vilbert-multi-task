@@ -27,7 +27,7 @@ from vilbert.vilbert import VILBertForVLTasks
 logger = logging.getLogger(__name__)
 
 class PipelinedWithLossForVLTasks(nn.Module):
-    def __init__(self, config, args, num_labels, task_cfg, task_dataloader = None) -> None:
+    def __init__(self, config, args, num_labels, task_cfg, task_ids, task_dataloader = None) -> None:
         super().__init__()
 
         self.loss_map = {
@@ -38,20 +38,28 @@ class PipelinedWithLossForVLTasks(nn.Module):
         self.taks_cfg = task_cfg
         self.args = args
 
+        
         # load multi losses
         self.task_losses = {}
         self.losses = {}
         task_types = []
+        task_lr = [] # learning rate
         # num_labels = 0 # not used
-        for i, task_id in enumerate(self.args.tasks.split("-")):
-            task = "TASK" + task_id
+        for _, task in enumerate(task_ids):
             model_type = self.task_cfg[task]["type"]
             if model_type not in task_types:
                 task_types.append(model_type)
             self.losses[task] = self.loss_map[self.task_cfg[task]["loss"]]
+            task_lr.append(task_cfg[task]["lr"])
         
+        self.base_lr = min(task_lr)
+        self.loss_scale = {}
+        for i, task in enumerate(task_ids):
+            self.loss_scale[task] = task_lr[i] / self.base_lr
+
         # some tasks will used task_dataloader[task_id].dataset.label2ans
-        self.task_dataloader = task_dataloader
+        if self.evaluation:
+            self.task_dataloader = task_dataloader
         if self.args.baseline:
             self.model = BaseBertForVLTasks.from_pretrained(
                 args.from_pretrained,
@@ -70,8 +78,7 @@ class PipelinedWithLossForVLTasks(nn.Module):
     def forward(
         self,
         task_id,
-        batch,
-        model,
+        batch
     ):
         if task_id == "TASK4" or task_id == "TASK17":
             features, spatials, image_mask, question, target, input_mask, segment_ids, multiple_choice_ids, co_attention_mask, question_id = (
@@ -199,7 +206,7 @@ class PipelinedWithLossForVLTasks(nn.Module):
         
 
         task_tokens = question.new().resize_(question.size(0), 1).fill_(int(task_id[4:]))
-        vil_prediction, vil_prediction_gqa, vil_logit, vil_binary_prediction, vil_tri_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit, _ = model(
+        vil_prediction, vil_prediction_gqa, vil_logit, vil_binary_prediction, vil_tri_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit, _ = self.model(
             question,
             features,
             spatials,
@@ -311,9 +318,12 @@ class PipelinedWithLossForVLTasks(nn.Module):
 
         if self.training:
             batch_score = batch_score / float( batch_size)
-            return loss, batch_score
+            loss = loss * self.loss_scale[task_id]
+            if self.args.gradient_accumulation_steps > 1:
+                loss = loss / self.args.gradient_accumulation_steps
+            return batch_score, loss
         else:
-            return float(loss), float(batch_score), batch_size, results
+            return float(batch_score), batch_size, results, float(loss)
     
     def compute_score_with_logits(self, logits, labels):
         logits = torch.max(logits, 1)[1].data  # argmax
@@ -325,7 +335,7 @@ class PipelinedWithLossForVLTasks(nn.Module):
 
 
 
-def LoadDatasets(args, task_cfg, ids, opts, split="trainval"):
+def LoadDatasets(args, task_cfg, task_ids, opts, split="trainval"):
 
     tokenizer = BertTokenizer.from_pretrained(
         args.bert_model, do_lower_case=args.do_lower_case
@@ -333,8 +343,7 @@ def LoadDatasets(args, task_cfg, ids, opts, split="trainval"):
 
     task_feature_reader1 = {}
     task_feature_reader2 = {}
-    for i, task_id in enumerate(ids):
-        task = "TASK" + task_id
+    for _, task in enumerate(task_ids):
         if task_cfg[task]["features_h5path1"] not in task_feature_reader1:
             task_feature_reader1[task_cfg[task]["features_h5path1"]] = None
         if task_cfg[task]["features_h5path2"] not in task_feature_reader2:
@@ -356,14 +365,11 @@ def LoadDatasets(args, task_cfg, ids, opts, split="trainval"):
     task_datasets_val = {}
     task_dataloader_train = {}
     task_dataloader_val = {}
-    task_ids = []
     task_batch_size = {}
     task_num_iters = {}
 
-    for _, task_id in enumerate(ids):
-        task = "TASK" + task_id
+    for _, task in enumerate(task_ids):
         task_name = task_cfg[task]["name"]
-        task_ids.append(task)
         batch_size = task_cfg[task]["batch_size"] // args.gradient_accumulation_steps
         num_workers = args.num_workers
         # unsuported in IPU
@@ -470,7 +476,6 @@ def LoadDatasets(args, task_cfg, ids, opts, split="trainval"):
     return (
         task_batch_size,
         task_num_iters,
-        task_ids,
         task_datasets_train,
         task_datasets_val,
         task_dataloader_train,
@@ -478,14 +483,13 @@ def LoadDatasets(args, task_cfg, ids, opts, split="trainval"):
     )
 
 
-def LoadDatasetEval(args, task_cfg, ids):
+def LoadDatasetEval(args, task_cfg, task_ids):
 
     tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=True)
 
     task_feature_reader1 = {}
     task_feature_reader2 = {}
-    for i, task_id in enumerate(ids):
-        task = "TASK" + task_id
+    for i, task in enumerate(task_ids):
         if task_cfg[task]["features_h5path1"] not in task_feature_reader1:
             task_feature_reader1[task_cfg[task]["features_h5path1"]] = None
         if task_cfg[task]["features_h5path2"] not in task_feature_reader2:
@@ -506,19 +510,16 @@ def LoadDatasetEval(args, task_cfg, ids):
 
     task_datasets_val = {}
     task_dataloader_val = {}
-    task_ids = []
     task_batch_size = {}
     task_num_iters = {}
 
-    for i, task_id in enumerate(ids):
-        task = "TASK" + task_id
-        task_ids.append(task)
+    for i, task in enumerate(task_ids):
         task_name = task_cfg[task]["name"]
         batch_size = args.batch_size
         if args.local_rank != -1:
             batch_size = int(batch_size / dist.get_world_size())
 
-        num_workers = int(args.num_workers / len(ids))
+        num_workers = int(args.num_workers / len(task_ids))
         logger.info(
             "Loading %s Dataset with batch size %d"
             % (task_cfg[task]["name"], batch_size)
@@ -569,7 +570,6 @@ def LoadDatasetEval(args, task_cfg, ids):
     return (
         task_batch_size,
         task_num_iters,
-        task_ids,
         task_datasets_val,
         task_dataloader_val,
     )
