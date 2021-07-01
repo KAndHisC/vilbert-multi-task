@@ -1330,7 +1330,8 @@ class BertModel(BertPreTrainedModel):
 
         if self.task_specific_tokens:
             # extend the mask
-            mask_tokens = input_txt.new().resize_(input_txt.size(0), 1).fill_(1)
+            # mask_tokens = input_txt.new().resize_().fill_(1)
+            mask_tokens = torch.full( (input_txt.size(0), 1), 1, dtype=input_txt.dtype)
             attention_mask = torch.cat([mask_tokens, attention_mask], dim=1)
 
         # We create a 3D attention mask from a 2D tensor mask.

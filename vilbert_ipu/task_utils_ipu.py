@@ -35,13 +35,13 @@ class PipelinedWithLossForVLTasks(nn.Module):
                         "CrossEntropyLoss": nn.CrossEntropyLoss(),
                     }
 
-        self.taks_cfg = task_cfg
+        self.task_cfg = task_cfg
         self.args = args
+        self.other = {}
 
         
         # load multi losses
         self.task_losses = {}
-        self.losses = {}
         task_types = []
         task_lr = [] # learning rate
         # num_labels = 0 # not used
@@ -49,7 +49,8 @@ class PipelinedWithLossForVLTasks(nn.Module):
             model_type = self.task_cfg[task]["type"]
             if model_type not in task_types:
                 task_types.append(model_type)
-            self.losses[task] = self.loss_map[self.task_cfg[task]["loss"]]
+            self.task_losses[task] = self.loss_map[self.task_cfg[task]["loss"]]
+            print("task %s loss is %s"%(task, self.task_cfg[task]["loss"]))
             task_lr.append(task_cfg[task]["lr"])
         
         self.base_lr = min(task_lr)
@@ -58,8 +59,7 @@ class PipelinedWithLossForVLTasks(nn.Module):
             self.loss_scale[task] = task_lr[i] / self.base_lr
 
         # some tasks will used task_dataloader[task_id].dataset.label2ans
-        if self.evaluation:
-            self.task_dataloader = task_dataloader
+        self.task_dataloader = task_dataloader
         if self.args.baseline:
             self.model = BaseBertForVLTasks.from_pretrained(
                 args.from_pretrained,
@@ -77,9 +77,10 @@ class PipelinedWithLossForVLTasks(nn.Module):
 
     def forward(
         self,
-        task_id,
         batch
     ):
+        task_id = self.other['task_id']
+        print("task_id:", self.other['task_id'])
         if task_id == "TASK4" or task_id == "TASK17":
             features, spatials, image_mask, question, target, input_mask, segment_ids, multiple_choice_ids, co_attention_mask, question_id = (
                 batch
@@ -204,8 +205,13 @@ class PipelinedWithLossForVLTasks(nn.Module):
                 co_attention_mask.size(2),
             )
         
-
-        task_tokens = question.new().resize_(question.size(0), 1).fill_(int(task_id[4:]))
+        # resize_ can't be represented in the JIT at the moment, 
+        # so we won't connect any uses of this value with its current trace. 
+        # If you happen to use it again, it will show up as a constant in the graph.
+        # task_tokens = question.new().resize_(question.size(0), 1).fill_(int(task_id[4:]))
+        # print('question size:', question.size(), 'new size',(question.size(0), 1))
+        task_tokens = torch.full( (question.size(0), 1), int(task_id[4:]) , dtype=question.dtype)
+        
         vil_prediction, vil_prediction_gqa, vil_logit, vil_binary_prediction, vil_tri_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit, _ = self.model(
             question,
             features,
@@ -224,7 +230,7 @@ class PipelinedWithLossForVLTasks(nn.Module):
             loss = self.task_losses[task_id](vil_prediction, target)
             loss = loss.mean() * target.size(1)
             batch_score = self.compute_score_with_logits(vil_prediction, target).sum() 
-            if self.evaluation:
+            if not self.training:
                 logits = torch.max(vil_prediction, 1)[1].data  # argmax
                 for i in range(logits.size(0)):
                     results.append(
@@ -242,7 +248,7 @@ class PipelinedWithLossForVLTasks(nn.Module):
             batch_score = self.compute_score_with_logits(
                 vil_prediction_gqa, target
             ).sum() 
-            if self.evaluation:
+            if not self.training:
                 logits = torch.max(vil_prediction_gqa, 1)[1].data
                 for i in range(logits.size(0)):
                     results.append(
@@ -258,9 +264,10 @@ class PipelinedWithLossForVLTasks(nn.Module):
             vil_logit = vil_logit.view(batch_size, num_options)
             loss = self.task_losses[task_id](vil_logit, target)
             _, preds = torch.max(vil_logit, 1)
-            batch_score = float((preds == target).sum()) 
+            # batch_score = float((preds == target).sum()) 
+            batch_score = (preds == target).sum() 
             probs = torch.softmax(vil_logit, dim=1)
-            if self.evaluation:
+            if not self.training:
                 for i in range(vil_logit.size(0)):
                     results.append(
                         {
@@ -276,7 +283,7 @@ class PipelinedWithLossForVLTasks(nn.Module):
             _, select_idx = torch.max(vision_logit, dim=1)
             select_target = target.squeeze(2).gather(1, select_idx.view(-1, 1))
             batch_score = torch.sum(select_target > 0.5)
-            if self.evaluation:
+            if not self.training:
                 batch_score =  batch_score.item()
                 for i in range(select_idx.size(0)):
                     results.append(
@@ -286,8 +293,8 @@ class PipelinedWithLossForVLTasks(nn.Module):
                             "IOU": select_target[i].item(),
                         }
                     )
-            else:
-                batch_score = float(batch_score)
+            # else:
+            #     batch_score = float(batch_score)
 
         elif self.task_cfg[task_id]["type"] == "V-logit-mc":
             vision_logit = vision_logit[:, 101:]
@@ -297,8 +304,9 @@ class PipelinedWithLossForVLTasks(nn.Module):
             loss = loss.mean() * target.size(1)
             _, preds = torch.max(vision_logit, dim=1)
             _, target = torch.max(target, dim=1)
-            batch_score = float((preds == target).sum())
-            if self.evaluation:
+            # batch_score = float((preds == target).sum())
+            batch_score = (preds == target).sum()
+            if not self.training:
                 for i in range(preds.size(0)):
                     results.append({"id": question_id[i].item(), "target": preds[i].item()})
 
@@ -317,13 +325,15 @@ class PipelinedWithLossForVLTasks(nn.Module):
             ).sum() 
 
         if self.training:
-            batch_score = batch_score / float( batch_size)
+            # batch_score = batch_score / float( batch_size)
+            batch_score = batch_score /  batch_size
             loss = loss * self.loss_scale[task_id]
             if self.args.gradient_accumulation_steps > 1:
                 loss = loss / self.args.gradient_accumulation_steps
             return batch_score, loss
         else:
-            return float(batch_score), batch_size, results, float(loss)
+            # return float(batch_score), batch_size, results, float(loss)
+            return  batch_score, batch_size, results, loss
     
     def compute_score_with_logits(self, logits, labels):
         logits = torch.max(logits, 1)[1].data  # argmax
@@ -332,6 +342,10 @@ class PipelinedWithLossForVLTasks(nn.Module):
         one_hots.scatter_(1, logits.view(-1, 1), 1)
         scores = one_hots * labels
         return scores
+
+    def set_task_id(self, task_id):
+        self.other['task_id'] = task_id
+        print("Setting task_id: ", task_id)
 
 
 
@@ -483,7 +497,7 @@ def LoadDatasets(args, task_cfg, task_ids, opts, split="trainval"):
     )
 
 
-def LoadDatasetEval(args, task_cfg, task_ids):
+def LoadDatasetEval(args, task_cfg, task_ids, opts):
 
     tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=True)
 
@@ -557,6 +571,7 @@ def LoadDatasetEval(args, task_cfg, task_ids):
         #     pin_memory=True,
         # )
         task_dataloader_val[task] = poptorch.DataLoader(
+            opts,
             task_datasets_val[task],
             shuffle=False,
             batch_size=batch_size,
