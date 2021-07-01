@@ -141,7 +141,7 @@ python script/convert_to_lmdb.py --features_dir data/rawdatasets/flickr30k/image
 # add this new task in vilbert/dataset/__init__.py
 # run train task 
 
-nohup python train_tasks.py --bert_model bert-base-uncased --from_pretrained models/pretrained_model.bin --config_file config/bert_base_6layer_6conect.json --tasks 19 --lr_scheduler 'warmup_linear' --train_iter_gap 4 --task_specific_tokens --save_name flickr30k_finetune_copy >> out.log 2>&1 &
+nohup python train_tasks_ipu.py --bert_model bert-base-uncased --from_pretrained /localdata/takiw/vilbert/save/origin/pretrained_model.bin --output_dir /localdata/takiw/vilbert/save --config_file config/bert_base_6layer_6conect.json --tasks 8 --lr_scheduler 'warmup_linear' --train_iter_gap 4 --task_specific_tokens --save_name flickr30k_finetune_copy >> out.log 2>&1 &
 
 
 
