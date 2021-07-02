@@ -37,9 +37,11 @@ from poptorch.optim import AdamW
 from vilbert.optimization import RAdam
 from vilbert_ipu.task_utils_ipu import (
     LoadDatasets,
-    PipelinedWithLossForSingleTask,
+    PipelinedWithLossForRetrievalFlickr30k,
+    # PipelinedWithLossForSingleTask,
     # PipelinedWithLossForVLTasks,
 )
+from vilbert.vilbert import BertConfig
 from torch.optim.lr_scheduler import (
     LambdaLR,
     ReduceLROnPlateau,
@@ -112,21 +114,12 @@ def main():
         help="Proportion of training to perform linear learning rate warmup for."
         "E.g., 0.1 = 10%% of training.",
     )
-    # parser.add_argument(
-    #     "--no_cuda", action="store_true", help="Whether not to use CUDA when available"
-    # )
     parser.add_argument(
         "--do_lower_case",
         default=True,
         type=bool,
         help="Whether to lower case the input text. True for uncased models, False for cased models.",
     )
-    # parser.add_argument(
-    #     "--local_rank",
-    #     type=int,
-    #     default=-1,
-    #     help="local_rank for distributed training on gpus",
-    # )
     parser.add_argument(
         "--seed", type=int, default=0, help="random seed for initialization"
     )
@@ -136,19 +129,19 @@ def main():
         default=1,
         help="Number of updates steps to accumualte before performing a backward/update pass.",
     )
-    parser.add_argument(
-        "--fp16",
-        action="store_true",
-        help="Whether to use 16-bit float precision instead of 32-bit",
-    )
-    parser.add_argument(
-        "--loss_scale",
-        type=float,
-        default=0,
-        help="Loss scaling to improve fp16 numeric stability. Only used when fp16 set to True.\n"
-        "0 (default value): dynamic loss scaling.\n"
-        "Positive power of 2: static loss scaling value.\n",
-    )
+    # parser.add_argument(
+    #     "--fp16",
+    #     action="store_true",
+    #     help="Whether to use 16-bit float precision instead of 32-bit",
+    # )
+    # parser.add_argument(
+    #     "--loss_scale",
+    #     type=float,
+    #     default=0,
+    #     help="Loss scaling to improve fp16 numeric stability. Only used when fp16 set to True.\n"
+    #     "0 (default value): dynamic loss scaling.\n"
+    #     "Positive power of 2: static loss scaling value.\n",
+    # )
     parser.add_argument(
         "--num_workers",
         type=int,
@@ -168,7 +161,7 @@ def main():
         "--optim", default="AdamW", type=str, help="what to use for the optimization."
     )
     parser.add_argument(
-        "--tasks", default="", type=str, help="1-2-3... training task separate by -"
+        "--tasks", default='8', type=str, help="1-2-3... training task separate by -"
     )
     parser.add_argument(
         "--freeze",
@@ -229,31 +222,19 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
+    opts.randomSeed(args.seed)
 
-    # cudnn is not supported in IPU
-    # torch.backends.cudnn.deterministic = True
-    # torch.backends.cudnn.benchmark = False
-
-    if args.baseline:
-        from pytorch_transformers.modeling_bert import BertConfig
-    else:
-        from vilbert.vilbert import BertConfig
-
-    indexes = args.tasks.split("-")
-    task_names = [] 
-    task_ids = []
-    for i, task_id in enumerate(indexes):
-        task = "TASK" + task_id
-        task_ids.append(task)
-        name = task_cfg[task]["name"]
-        task_names.append(name)
+    task_id = "TASK" + args.task
+    task_name = task_cfg[task_id]["name"] 
+    task_lr = task_cfg[task_id]["lr"]
+    base_lr = task_lr
 
     if args.save_name:
         prefix = "-" + args.save_name
     else:
         prefix = ""
     timeStamp = (
-        "-".join(task_names)
+        "-".join(task_name)
         + "_"
         + args.config_file.split("/")[1].split(".")[0]
         + prefix
@@ -264,55 +245,29 @@ def main():
         open("config/" + args.bert_model + "_weight_name.json", "r")
     )
 
-    # needn't setting in ipu
-    # if args.local_rank == -1 or args.no_cuda:
-    #     device = torch.device(
-    #         "cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu"
-    #     )
-    #     n_gpu = torch.cuda.device_count()
-    # else:
-    #     torch.cuda.set_device(args.local_rank)
-    #     device = torch.device("cuda", args.local_rank)
-    #     n_gpu = 1
-    #     torch.distributed.init_process_group(backend="nccl")
-    
-    # logger.info(
-    #     "device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(
-    #         device, n_gpu, bool(args.local_rank != -1), args.fp16
-    #     )
-    # )
-
-    # takiw commented: This var is used in everywhere and hard to edit, so just set it to True.
-    # default_gpu = True
-    # if dist.is_available() and args.local_rank != -1:
-    #     rank = dist.get_rank()
-    #     if rank == 0:
-    #         default_gpu = True
-    # else:
-    #     default_gpu = True
-
-    # if default_gpu:
     if not os.path.exists(savePath):
         os.makedirs(savePath)
 
     config = BertConfig.from_json_file(args.config_file)
-    # if default_gpu:
-        # save all the hidden parameters.
+
     with open(os.path.join(savePath, "command.txt"), "w") as f:
         print(args, file=f)  # Python 3.x
         print("\n", file=f)
         print(config, file=f)
 
     task_batch_size, task_num_iters, task_datasets_train, task_datasets_val, task_dataloader_train, task_dataloader_val = LoadDatasets(
-        args, task_cfg, task_ids, opts
+        args, task_cfg, [task_id], opts
     )
+
+    # only single task
+    task_dataloader_train=task_dataloader_train[task_id]
 
     logdir = os.path.join(savePath, "logs")
     tbLogger = utils.tbLogger(
         logdir,
         savePath,
-        task_names,
-        task_ids,
+        task_name,
+        task_id,
         task_num_iters,
         args.gradient_accumulation_steps,
     )
@@ -330,25 +285,22 @@ def main():
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
-    task_ave_iter = {}
-    task_stop_controller = {}
-    for task_id, num_iter in task_num_iters.items():
-        task_ave_iter[task_id] = int(
-            task_cfg[task]["num_epoch"]
-            * num_iter
-            * args.train_iter_multiplier
-            / args.num_train_epochs
-        )
-        task_stop_controller[task_id] = utils.MultiTaskStopOnPlateau(
-            mode="max",
-            patience=1,
-            continue_threshold=0.005,
-            cooldown=1,
-            threshold=0.001,
-        )
 
-    task_ave_iter_list = sorted(task_ave_iter.values())
-    median_num_iter = task_ave_iter_list[-1]
+    task_ave_iter = int(
+        task_cfg[task_id]["num_epoch"]
+        * task_num_iters[task_id]
+        * args.train_iter_multiplier
+        / args.num_train_epochs
+    )
+    task_stop_controller = utils.MultiTaskStopOnPlateau(
+        mode="max",
+        patience=1,
+        continue_threshold=0.005,
+        cooldown=1,
+        threshold=0.001,
+    )
+
+    median_num_iter = task_ave_iter
     num_train_optimization_steps = (
         median_num_iter * args.num_train_epochs // args.gradient_accumulation_steps
     )
@@ -358,15 +310,11 @@ def main():
         config.dynamic_attention = True
     if "roberta" in args.bert_model:
         config.model = "roberta"
-
-    base_lr = task_cfg[task_ids[0]]["lr"]
     
-    model = PipelinedWithLossForSingleTask(
+    model = PipelinedWithLossForRetrievalFlickr30k(
         config=config,
         args = args,
-        num_labels=num_labels,
-        task_cfg = task_cfg,
-        task_id = task_ids[0]
+        num_labels=num_labels
     )
 
 
@@ -478,24 +426,6 @@ def main():
         tbLogger = checkpoint["tb_logger"]
         del checkpoint
 
-    # model.to(device)
-    # for state in optimizer.state.values():
-    #     for k, v in state.items():
-    #         if torch.is_tensor(v):
-    #             state[k] = v.cuda()
-
-    # apex needn't in IPU
-    # if args.local_rank != -1:
-    #     try:
-    #         from apex.parallel import DistributedDataParallel as DDP
-    #     except ImportError:
-    #         raise ImportError(
-    #             "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training."
-    #         )
-    #     model = DDP(model, delay_allreduce=True)
-
-    # elif n_gpu > 1:
-    #     model = torch.nn.DataParallel(model)
 
     # if default_gpu:
     print("***** Running training *****")
@@ -503,8 +433,8 @@ def main():
     print("  Batch size: ", task_batch_size)
     print("  Num steps: %d" % num_train_optimization_steps)
 
-    task_iter_train = {name: None for name in task_ids}
-    task_count = {name: 0 for name in task_ids}
+    task_iter_train = None
+    task_count = 0
     
     
     # # # # # # # # #   
@@ -518,60 +448,43 @@ def main():
         torch.autograd.set_detect_anomaly(True)
         for step in range(median_num_iter):
             iterId = startIterID + step + (epochId * median_num_iter)
-            first_task = True
-            for task_id in task_ids:
-                # IPU cannot support str type, so it should set task_id in model then we can use it to choose different condition for tasks
-                model.train()
-                is_forward = False
-                if (not task_stop_controller[task_id].in_stop) or (
-                    iterId % args.train_iter_gap == 0
-                ):
-                    is_forward = True
-                # given the current task, decided whether to forward the model and forward with specific loss.
+            
+            model.train()
+            is_forward = False
+            if (not task_stop_controller.in_stop) or (
+                iterId % args.train_iter_gap == 0
+            ):
+                is_forward = True
+            # given the current task, decided whether to forward the model and forward with specific loss.
 
-                # reset the task iteration when needed.
-                if task_count[task_id] % len(task_dataloader_train[task_id]) == 0:
-                    task_iter_train[task_id] = iter(task_dataloader_train[task_id])
+            # reset the task iteration when needed.
+            if task_count % len(task_dataloader_train) == 0:
+                task_iter_train = iter(task_dataloader_train)
 
-                task_count[task_id] += 1
-                batch = task_iter_train[task_id].next() # get the batch
-                if is_forward:
-                    score, loss = train_model(tuple(batch)) 
-                    
+            task_count += 1
+            batch = task_iter_train.next() # get the batch
+            if is_forward:
+                score, loss = train_model(tuple(batch))   
 
-                    # loss.backward() # IPU will auto backforward
-                    if (step + 1) % args.gradient_accumulation_steps == 0:
-                        # TODO-- cannot find warmup_linear()
-                        # if args.fp16:
-                        #     lr_this_step = args.learning_rate * warmup_linear(
-                        #         global_step / num_train_optimization_steps,
-                        #         args.warmup_proportion,
-                        #     )
-                        #     for param_group in optimizer.param_groups:
-                        #         param_group["lr"] = lr_this_step
+                # loss.backward() # IPU will auto backforward
+                if (step + 1) % args.gradient_accumulation_steps == 0:
 
-                        # optimizer.step() 
-                        # model.zero_grad()
-                        if first_task and (
-                            global_step < warmpu_steps
-                            or args.lr_scheduler == "warmup_linear"
-                        ):
-                            warmup_scheduler.step()
-                            train_model.setOptimizer(optimizer)
-                        if first_task:
-                            global_step += 1
-                            first_task = False
+                    # optimizer.step() 
+                    # model.zero_grad()
+                    if global_step < warmpu_steps or args.lr_scheduler == "warmup_linear":
+                        warmup_scheduler.step()
+                        train_model.setOptimizer(optimizer)           
+                    global_step += 1
 
-                        # if default_gpu:
-                        tbLogger.step_train(
-                            epochId,
-                            iterId,
-                            float(loss),
-                            float(score),
-                            optimizer.param_groups[0]["lr"],
-                            task_id,
-                            "train",
-                        )
+                    tbLogger.step_train(
+                        epochId,
+                        iterId,
+                        float(loss),
+                        float(score),
+                        optimizer.param_groups[0]["lr"],
+                        task_id,
+                        "train",
+                    )
 
             if "cosine" in args.lr_scheduler and global_step > warmpu_steps:
                 lr_scheduler.step()
@@ -584,24 +497,23 @@ def main():
                 tbLogger.showLossTrain()
 
             # decided whether to evaluate on each tasks.
-            for task_id in task_ids:
-                if (iterId != 0 and iterId % task_num_iters[task_id] == 0) or (
-                    epochId == args.num_train_epochs - 1 and step == median_num_iter - 1
-                ):
-                    model.eval()
-                    for i, batch in enumerate(task_dataloader_val[task_id]):
-                        _, batch_size, _, loss = inference_model(batch)
-                        tbLogger.step_val(
-                            epochId, float(loss), float(score), task_id, batch_size, "val"
-                        )
-                        # if default_gpu:
-                        sys.stdout.write("%d/%d\r" % (i, len(task_dataloader_val[task_id])))
-                        sys.stdout.flush()
+            if (iterId != 0 and iterId % task_num_iters == 0) or (
+                epochId == args.num_train_epochs - 1 and step == median_num_iter - 1
+            ):
+                model.eval()
+                for i, batch in enumerate(task_dataloader_val[task_id]):
+                    _, batch_size, _, loss = inference_model(batch)
+                    tbLogger.step_val(
+                        epochId, float(loss), float(score), task_id, batch_size, "val"
+                    )
+                    # if default_gpu:
+                    sys.stdout.write("%d/%d\r" % (i, len(task_dataloader_val[task_id])))
+                    sys.stdout.flush()
 
-                    # update the multi-task scheduler.
-                    task_stop_controller[task_id].step(tbLogger.getValScore(task_id))
-                    score = tbLogger.showLossVal(task_id, task_stop_controller)
-                    model.train()
+                # update the multi-task scheduler.
+                task_stop_controller.step(tbLogger.getValScore(task_id))
+                score = tbLogger.showLossVal(task_id, task_stop_controller)
+                model.train()
 
         if args.lr_scheduler == "automatic":
             lr_scheduler.step(sum(tbLogger.showLossValAll().values()))
@@ -612,11 +524,8 @@ def main():
             train_model.setOptimizer(optimizer)
 
         if epochId in lr_reduce_list:
-            for task_id in task_ids:
-                # reset the task_stop_controller once the lr drop
-                task_stop_controller[task_id]._reset()
+            task_stop_controller._reset()
 
-        # if default_gpu:
         # Save a trained model
         logger.info("** ** * Saving fine - tuned model ** ** * ")
         model_to_save = (

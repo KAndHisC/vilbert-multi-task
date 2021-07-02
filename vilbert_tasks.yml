@@ -132,14 +132,14 @@ TASK8:
   loss: CrossEntropyLoss
   process: retrieval
   task_id: 8
-  dataroot: datasets/flickr30k
-  features_h5path1: datasets/flickr30k/flickr30k_resnext152_faster_rcnn_genome.lmdb
+  dataroot: /localdata/takiw/vilbert/datasets/flickr30k
+  features_h5path1: /localdata/takiw/vilbert/datasets/flickr30k/flickr30k_resnext152_faster_rcnn_genome.lmdb
   features_h5path2: ''
-  train_annotations_jsonpath: datasets/flickr30k/all_data_final_train_2014.jsonline
-  val_annotations_jsonpath: datasets/flickr30k/all_data_final_test_set0_2014.jsonline
+  train_annotations_jsonpath: /localdata/takiw/vilbert/datasets/flickr30k/all_data_final_train_2014.jsonline
+  val_annotations_jsonpath: /localdata/takiw/vilbert/datasets/flickr30k/all_data_final_test_set0_2014.jsonline
   max_seq_length: 30
   max_region_num: 101
-  batch_size: 128
+  batch_size: 16
   train_split: train
   val_split: val
   lr: 0.00002
