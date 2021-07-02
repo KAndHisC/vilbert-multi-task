@@ -14,6 +14,7 @@ import numpy as np
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from bisect import bisect
+from vilbert_ipu.task_utils_ipu import LoadDatasets
 import yaml
 from easydict import EasyDict as edict
 
@@ -24,7 +25,6 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 import poptorch
-import ipu_options
         
 from pytorch_transformers.optimization import (
     # AdamW,
@@ -35,11 +35,9 @@ from pytorch_transformers.optimization import (
 from poptorch.optim import AdamW
 
 from vilbert.optimization import RAdam
-from vilbert_ipu.task_utils_ipu import (
-    LoadDatasets,
+from vilbert_ipu import (
+    ipu_options,
     PipelinedWithLossForRetrievalFlickr30k,
-    # PipelinedWithLossForSingleTask,
-    # PipelinedWithLossForVLTasks,
 )
 from vilbert.vilbert import BertConfig
 from torch.optim.lr_scheduler import (
@@ -224,7 +222,7 @@ def main():
     torch.manual_seed(args.seed)
     opts.randomSeed(args.seed)
 
-    task_id = "TASK" + args.task
+    task_id = "TASK" + args.tasks
     task_name = task_cfg[task_id]["name"] 
     task_lr = task_cfg[task_id]["lr"]
     base_lr = task_lr

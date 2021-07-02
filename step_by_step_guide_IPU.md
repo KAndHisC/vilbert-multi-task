@@ -37,7 +37,7 @@ EOF
 conda activate vilbert-mt
 
 # get project
-git clone --recursive https://github.com/facebookresearch/vilbert-multi-task.git
+git clone https://github.com/KAndHisC/vilbert-multi-task.git
 cd vilbert-multi-task
 
 # install libcap-dev. Example in ubuntu is following.
@@ -90,7 +90,7 @@ nohup python train_tasks_ipu.py --bert_model bert-base-uncased --from_pretrained
 
 
 
-nohup python train_retrieval_ipu.py --bert_model bert-base-uncased --from_pretrained /localdata/takiw/vilbert/save/origin/pretrained_model.bin --output_dir /localdata/takiw/vilbert/save --config_file config/bert_base_6layer_6conect.json --tasks 8 --lr_scheduler 'warmup_linear' --train_iter_gap 4 --task_specific_tokens --save_name flickr30k_finetune_copy >> out.log 2>&1 &
+nohup python train_retrieval_ipu.py --bert_model bert-base-uncased --from_pretrained save/origin/pretrained_model.bin --output_dir save --config_file config/bert_base_6layer_6conect.json --tasks 8 --lr_scheduler 'warmup_linear' --train_iter_gap 4 --task_specific_tokens --save_name flickr30k_finetune_copy >> out.log 2>&1 &
 
 
 
