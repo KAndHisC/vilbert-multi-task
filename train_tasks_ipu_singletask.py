@@ -359,14 +359,14 @@ def main():
     if "roberta" in args.bert_model:
         config.model = "roberta"
 
-    base_lr = task_cfg[task_id]["lr"]
+    base_lr = task_cfg[task_ids[0]]["lr"]
     
     model = PipelinedWithLossForSingleTask(
         config=config,
         args = args,
         num_labels=num_labels,
         task_cfg = task_cfg,
-        task_ids = task_ids
+        task_id = task_ids[0]
     )
 
 
@@ -521,7 +521,6 @@ def main():
             first_task = True
             for task_id in task_ids:
                 # IPU cannot support str type, so it should set task_id in model then we can use it to choose different condition for tasks
-                model.set_task_id(task_id)
                 model.train()
                 is_forward = False
                 if (not task_stop_controller[task_id].in_stop) or (
@@ -535,10 +534,10 @@ def main():
                     task_iter_train[task_id] = iter(task_dataloader_train[task_id])
 
                 task_count[task_id] += 1
+                batch = task_iter_train[task_id].next() # get the batch
                 if is_forward:
-                    score, loss = train_model(
-                        tuple(task_iter_train[task_id].next()) # get the batch
-                    )
+                    score, loss = train_model(tuple(batch)) 
+                    
 
                     # loss.backward() # IPU will auto backforward
                     if (step + 1) % args.gradient_accumulation_steps == 0:
@@ -586,7 +585,6 @@ def main():
 
             # decided whether to evaluate on each tasks.
             for task_id in task_ids:
-                model.set_task_id(task_id)
                 if (iterId != 0 and iterId % task_num_iters[task_id] == 0) or (
                     epochId == args.num_train_epochs - 1 and step == median_num_iter - 1
                 ):

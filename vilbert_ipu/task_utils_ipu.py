@@ -346,19 +346,8 @@ class PipelinedWithLossForSingleTask(nn.Module):
     def __init__(self, config, args, num_labels, task_cfg, task_id, task_dataloader = None) -> None:
         super().__init__()
 
-        # self.task_cfg = task_cfg
-        # self.args = args
         self.task_id_int = int(task_id[4:])
-        
-        # load single losses
-        # num_labels = 0 # not used
-        # poptorch.identity_loss(loss1 + loss2, reduction='none')
-        # model_type = task_cfg[task_id]["type"]
-        
-        # base_lr = task_cfg[task_id]["lr"]
-
-        
-        
+        self.gradient_accumulation_steps = args.gradient_accumulation_steps
         # some tasks will used task_dataloader[task_id].dataset.label2ans
         self.task_dataloader = task_dataloader
 
@@ -514,7 +503,7 @@ class PipelinedWithLossForSingleTask(nn.Module):
             self.process = normal
 
         # get model
-        if self.args.baseline:
+        if args.baseline:
             self.model = BaseBertForVLTasks.from_pretrained(
                 args.from_pretrained,
                 config=config,
@@ -534,7 +523,7 @@ class PipelinedWithLossForSingleTask(nn.Module):
                         "BCEWithLogitLoss": nn.BCEWithLogitsLoss(reduction="mean"),
                         "CrossEntropyLoss": nn.CrossEntropyLoss(),
                     }
-        loss_func = loss_map[self.task_cfg[task_id]["loss"]]
+        loss_func = loss_map[task_cfg[task_id]["loss"]]
         print("task %s loss is %s"%(task_id, task_cfg[task_id]["loss"]))
         self.loss = None
         if task_cfg[task_id]["type"] == "VL-classifier":
@@ -709,7 +698,7 @@ class PipelinedWithLossForSingleTask(nn.Module):
             task_tokens,
         )
 
-        batch_score, batch_size, results, loss = self.loss(
+        batch_score, results, loss = self.loss(
             vil_prediction, vil_prediction_gqa, vil_logit, vil_binary_prediction, vil_tri_prediction, vision_logit, question_id, batch_size, num_options, multiple_choice_ids, target
             )
 
@@ -718,7 +707,7 @@ class PipelinedWithLossForSingleTask(nn.Module):
             # batch_score = batch_score / float( batch_size)
             batch_score = batch_score /  batch_size
             # loss = loss * self.loss_scale[task_id]
-            if self.args.gradient_accumulation_steps > 1:
+            if self.gradient_accumulation_steps > 1:
                 loss = loss / self.args.gradient_accumulation_steps
             return batch_score, poptorch.identity_loss(loss, reduction='none')
         else:

@@ -509,6 +509,7 @@ def main():
     # # # # # # # # #   
     #  start train  #
     # # # # # # # # #
+    opts.Training.gradientAccumulation(args.gradient_accumulation_steps) # to aviod auto exec optimizer.step() every step
     train_model = poptorch.trainingModel(model, options=opts, optimizer=optimizer)
     inference_model = poptorch.inferenceModel(model, options=opts)
 
@@ -551,7 +552,7 @@ def main():
                         #         param_group["lr"] = lr_this_step
 
                         # optimizer.step() 
-                        # model.zero_grad()
+                        # optimizer.zero_grad()
                         if first_task and (
                             global_step < warmpu_steps
                             or args.lr_scheduler == "warmup_linear"
@@ -633,7 +634,6 @@ def main():
                 "model_state_dict": model_to_save.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "warmup_scheduler_state_dict": warmup_scheduler.state_dict(),
-                # 'lr_scheduler_state_dict': lr_scheduler.state_dict(),
                 "global_step": global_step,
                 "epoch_id": epochId,
                 "task_stop_controller": task_stop_controller,
