@@ -12,7 +12,7 @@ from vilbert.vilbert import VILBertForVLTasks
 logger = logging.getLogger(__name__)
 
 class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
-    def __init__(self, config, args, num_labels) -> None:
+    def __init__(self, config, args, num_labels):
         super().__init__()
 
         # self.task_id_int = int(task_id[4:])
@@ -34,24 +34,24 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
             num_labels=num_labels,
             default_gpu=True,
         )
-        # 0
-        poptorch.BeginBlock(self.model.bert.embeddings, "embeddings", ipu_id=0)
-        poptorch.BeginBlock(self.model.bert.v_embeddings, "v_embeddings", ipu_id=0)
-        # 1
-        poptorch.BeginBlock(self.model.bert.encoder, "encoder", ipu_id=1)
-        # 2
-        poptorch.BeginBlock(self.model.bert.t_pooler, "t_pooler", ipu_id=2)
-        poptorch.BeginBlock(self.model.bert.v_pooler, "v_pooler", ipu_id=2)
-        poptorch.BeginBlock(self.model.cls, "cls", ipu_id=2)
-        # 3
-        poptorch.BeginBlock(self.model.dropout, "dropout", ipu_id=3)
-        poptorch.BeginBlock(self.model.vil_prediction, "vil_prediction", ipu_id=3)
-        poptorch.BeginBlock(self.model.vil_prediction_gqa, "vil_prediction_gqa", ipu_id=3)
-        poptorch.BeginBlock(self.model.vil_binary_prediction, "vil_binary_prediction", ipu_id=3)
-        poptorch.BeginBlock(self.model.vil_logit, "vil_logit", ipu_id=3)
-        poptorch.BeginBlock(self.model.vil_tri_prediction, "vil_tri_prediction", ipu_id=3)
-        poptorch.BeginBlock(self.model.vision_logit, "vision_logit", ipu_id=3)
-        poptorch.BeginBlock(self.model.linguisic_logit, "linguisic_logit", ipu_id=3)
+        # # 0
+        # poptorch.BeginBlock(self.model.bert.embeddings, "embeddings", ipu_id=0)
+        # poptorch.BeginBlock(self.model.bert.v_embeddings, "v_embeddings", ipu_id=0)
+        # # 1
+        # poptorch.BeginBlock(self.model.bert.encoder, "encoder", ipu_id=1)
+        # # 2
+        # poptorch.BeginBlock(self.model.bert.t_pooler, "t_pooler", ipu_id=2)
+        # poptorch.BeginBlock(self.model.bert.v_pooler, "v_pooler", ipu_id=2)
+        # poptorch.BeginBlock(self.model.cls, "cls", ipu_id=2)
+        # # 3
+        # poptorch.BeginBlock(self.model.dropout, "dropout", ipu_id=3)
+        # poptorch.BeginBlock(self.model.vil_prediction, "vil_prediction", ipu_id=3)
+        # poptorch.BeginBlock(self.model.vil_prediction_gqa, "vil_prediction_gqa", ipu_id=3)
+        # poptorch.BeginBlock(self.model.vil_binary_prediction, "vil_binary_prediction", ipu_id=3)
+        # poptorch.BeginBlock(self.model.vil_logit, "vil_logit", ipu_id=3)
+        # poptorch.BeginBlock(self.model.vil_tri_prediction, "vil_tri_prediction", ipu_id=3)
+        # poptorch.BeginBlock(self.model.vision_logit, "vision_logit", ipu_id=3)
+        # poptorch.BeginBlock(self.model.linguisic_logit, "linguisic_logit", ipu_id=3)
         
         self.loss = nn.CrossEntropyLoss()
 

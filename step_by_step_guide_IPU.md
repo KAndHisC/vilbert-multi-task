@@ -16,7 +16,7 @@ touch $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
 #### unset those environment variables into deactivate.d/env_vars.sh
 
 # example, add IPU libs into environment variables
-cat>$CONDA_PREFIX//etc/conda/activate.d/env_vars.sh<<EOF
+cat>$CONDA_PREFIX/etc/conda/activate.d/env_vars.sh<<EOF
 #!/bin/bash
 export GCDA_MONITOR=1
 export TF_CPP_VMODULE="poplar_compiler=1"
