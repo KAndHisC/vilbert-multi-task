@@ -14,7 +14,7 @@ import numpy as np
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from bisect import bisect
-from vilbert_ipu.task_utils_ipu import LoadDatasets
+
 import yaml
 from easydict import EasyDict as edict
 
@@ -37,7 +37,7 @@ from poptorch.optim import AdamW
 from vilbert.optimization import RAdam
 from vilbert_ipu import (
     ipu_options,
-    PipelinedWithLossForRetrievalFlickr30k,
+    RetrievalFlickr30k,
 )
 from vilbert.vilbert import BertConfig
 from torch.optim.lr_scheduler import (
@@ -232,7 +232,7 @@ def main():
     else:
         prefix = ""
     timeStamp = (
-        "-".join(task_name)
+        task_name
         + "_"
         + args.config_file.split("/")[1].split(".")[0]
         + prefix
@@ -253,6 +253,9 @@ def main():
         print("\n", file=f)
         print(config, file=f)
 
+
+    # IPU
+    from vilbert_ipu.task_utils_ipu import LoadDatasets
     task_batch_size, task_num_iters, task_datasets_train, task_datasets_val, task_dataloader_train, task_dataloader_val = LoadDatasets(
         args, task_cfg, [task_id], opts
     )
@@ -265,7 +268,7 @@ def main():
         logdir,
         savePath,
         task_name,
-        task_id,
+        [task_id],
         task_num_iters,
         args.gradient_accumulation_steps,
     )
@@ -309,11 +312,12 @@ def main():
     if "roberta" in args.bert_model:
         config.model = "roberta"
     
-    model = PipelinedWithLossForRetrievalFlickr30k(
+    model = RetrievalFlickr30k.PipelinedWithLossForRetrievalFlickr30k(
         config=config,
         args = args,
         num_labels=num_labels
     )
+    # model = model.half()
 
 
     no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
@@ -438,6 +442,10 @@ def main():
     # # # # # # # # #   
     #  start train  #
     # # # # # # # # #
+
+    # for testing, you can use isIPU to change how to run this code in IPU or CPU
+    isIPU = False
+
     train_model = poptorch.trainingModel(model, options=opts, optimizer=optimizer)
     inference_model = poptorch.inferenceModel(model, options=opts)
 
@@ -460,9 +468,13 @@ def main():
                 task_iter_train = iter(task_dataloader_train)
 
             task_count += 1
-            batch = task_iter_train.next() # get the batch
-            if is_forward:
-                score, loss = train_model(tuple(batch))   
+            batch = tuple(task_iter_train.next()) # get the batch
+            if is_forward:  
+                
+                if isIPU:
+                    score, loss = train_model(batch) 
+                else:
+                    score, loss = model(batch)   #  test in CPU first to make sure there is no error in model
 
                 # loss.backward() # IPU will auto backforward
                 if (step + 1) % args.gradient_accumulation_steps == 0:
@@ -495,12 +507,15 @@ def main():
                 tbLogger.showLossTrain()
 
             # decided whether to evaluate on each tasks.
-            if (iterId != 0 and iterId % task_num_iters == 0) or (
+            if (iterId != 0 and iterId % task_num_iters[task_id] == 0) or (
                 epochId == args.num_train_epochs - 1 and step == median_num_iter - 1
             ):
                 model.eval()
                 for i, batch in enumerate(task_dataloader_val[task_id]):
-                    _, batch_size, _, loss = inference_model(batch)
+                    if isIPU:
+                        _, batch_size, _, loss = inference_model(batch)
+                    else:
+                        _, batch_size, _, loss = model(batch) # test in CPU
                     tbLogger.step_val(
                         epochId, float(loss), float(score), task_id, batch_size, "val"
                     )

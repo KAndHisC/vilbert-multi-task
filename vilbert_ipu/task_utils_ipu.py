@@ -110,7 +110,7 @@ def LoadDatasets(args, task_cfg, task_ids, opts, split="trainval"):
         task_batch_size[task] = 0
         if "train" in split:
             # if args.local_rank == -1:
-            train_sampler = RandomSampler(task_datasets_train[task])
+            # train_sampler = RandomSampler(task_datasets_train[task])
             # else:
             #     # TODO: check if this works with current data generator from disk that relies on next(file)
             #     # (it doesn't return item back by index)
@@ -124,13 +124,21 @@ def LoadDatasets(args, task_cfg, task_ids, opts, split="trainval"):
             #     pin_memory=True,
             # )
             ## TODO-- IPU
+            # shuffle=train and not(isinstance(dataset, torch.utils.data.IterableDataset)),
+            # drop_last=not(isinstance(dataset, torch.utils.data.IterableDataset)),
+            # persistent_workers = True,
+            # auto_distributed_partitioning = not isinstance(dataset, torch.utils.data.IterableDataset),
+            # worker_init_fn=None,
+            # mode=mode,
+            # async_options={'load_indefinitely': True})
             task_dataloader_train[task] = poptorch.DataLoader(
                 opts,
                 task_datasets_train[task],
-                sampler=train_sampler,
+                # sampler=train_sampler,
+                shuffle=True,
                 batch_size=batch_size,
                 num_workers=num_workers,
-                pin_memory=True,
+                # pin_memory=True,
             )
 
             task_num_iters[task] = len(task_dataloader_train[task])
@@ -150,7 +158,7 @@ def LoadDatasets(args, task_cfg, task_ids, opts, split="trainval"):
                 shuffle=False,
                 batch_size=batch_size,
                 num_workers=2,
-                pin_memory=True,
+                # pin_memory=True,
             )
 
 
