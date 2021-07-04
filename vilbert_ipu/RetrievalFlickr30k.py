@@ -81,7 +81,7 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
         # so we won't connect any uses of this value with its current trace. 
         # If you happen to use it again, it will show up as a constant in the graph.
         # task_tokens = question.new().resize_(question.size(0), 1).fill_(int(task_id[4:]))
-        # print('question size:', question.size(), 'new size',(question.size(0), 1))
+        # print(question.dtype)
         task_tokens = torch.full( (question.size(0), 1), 8 , dtype=question.dtype)
         
         # some of them not used
@@ -104,11 +104,11 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
         loss = self.loss(vil_logit, target)
         _, preds = torch.max(vil_logit, 1)
         # batch_score = float((preds == target).sum()) 
-        batch_score = (preds == target).sum() 
+        batch_score = torch.eq(preds, target).sum().float()
 
         if self.training:
             # batch_score = batch_score / float( batch_size)
-            batch_score = batch_score /  float(batch_size)
+            batch_score = batch_score /  batch_size
             # loss = loss * self.loss_scale[task_id]
             # if self.gradient_accumulation_steps > 1:
             #     loss = loss / self.args.gradient_accumulation_steps
