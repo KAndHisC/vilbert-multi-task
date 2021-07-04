@@ -1,4 +1,7 @@
-# creat vituel env by conda
+# creat vituel env by conda. 
+
+note: it is OK if you have other IPU env created by virtualenv or something. This part for who begin a new IPU env.
+
 ```
 conda create -n vilbert-mt python=3.6
 conda activate vilbert-mt
@@ -8,11 +11,13 @@ mkdir -p $CONDA_PREFIX/etc/conda/deactivate.d
 touch $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
 touch $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
 ```
+
 you can add any environment variables if you want into **activate.d/env_vars.sh** .
 
 And unset those environment variables into **deactivate.d/env_vars.sh** .
 
 For this project, you need to add IPU libs into environment variables to enable IPU settings.
+
 ```
 cat>$CONDA_PREFIX/etc/conda/activate.d/env_vars.sh<<EOF
 #!/bin/bash
@@ -26,7 +31,7 @@ source /<your_popart_path>/enable.sh
 source /<your_poplar_path>/enable.sh
 EOF
 ```
-then unset Poplar SDK
+then unset Poplar SDK in deactivate.d
 ```
 cat>$CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh<<EOF
 #!/bin/bash
@@ -68,6 +73,7 @@ python setup.py install
 ```
 
 back to dir of vilbert-multi-task and install it in develop mode
+
 ```
 cd vilbert-multi-task/
 python setup.py build develop
@@ -94,16 +100,19 @@ cd vilbert-multi-task/data/
 wget https://dl.fbaipublicfiles.com/vilbert-multi-task/datasets.tar.gz 
 tar xf datasets.tar.gz
 ```
-you can run a fintune task by following command
+<!-- you can run a fintune task by following command
 ```
 python train_tasks_ipu.py --bert_model bert-base-uncased --from_pretrained /localdata/takiw/vilbert/save/origin/pretrained_model.bin --output_dir /localdata/takiw/vilbert/save --config_file config/bert_base_6layer_6conect.json --tasks 8 --lr_scheduler 'warmup_linear' --train_iter_gap 4 --task_specific_tokens --save_name flickr30k_finetune_copy 
-```
+``` -->
 
-there is a sample code just for training finetune of RetrievalFlickr30k task, and this code is easier to understand.
+you can run a example by this bash script `run_retrevalFlicker30K_task.sh` .
 
 ```
-python train_retrieval_ipu.py --bert_model bert-base-uncased --from_pretrained save/origin/pretrained_model.bin --output_dir save --config_file config/bert_base_6layer_6conect.json --tasks 8 --lr_scheduler 'warmup_linear' --train_iter_gap 4 --task_specific_tokens --save_name flickr30k_finetune_copy 
+bash run_retrevalFlicker30K_task.sh
+bash run_retrevalFlicker30K_task.sh --enable_IPU
 ```
+the code for training finetune of RetrievalFlickr30k is a simplified version of multi-tasks training which can help understand ViL BERT easier. The training loop is in vilbert-multi-task/train_retrieval_ipu.py.
+
 And the pipelinedModel is in vilbert-multi-task/vilbert_ipu/RetrievalFlickr30k.py
 
 
