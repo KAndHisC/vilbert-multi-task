@@ -1,0 +1,4 @@
+{
+  "devicex":"DEBUG",
+  "session":"DEBUG"
+}
