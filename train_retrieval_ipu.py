@@ -206,7 +206,26 @@ def main():
                 task_iter_train = iter(task_dataloader_train)
 
             task_count += 1
-            batch = tuple(task_iter_train.next()) # get the batch
+            fake_data = True
+            if fake_data:
+                batch_size = task_batch_size[task_id]
+                batch = (
+                        torch.rand(batch_size, 4, 101, 2048), 
+                        torch.rand(batch_size, 4, 101, 5), 
+                        torch.ones([batch_size, 4, 101]).long(), 
+                        torch.randint(0, 10000, [batch_size, 4, 30]), 
+                        torch.zeros([batch_size]).long(), 
+                        torch.randint(0, 1, [batch_size, 4, 30]), 
+                        torch.zeros([batch_size, 4, 30]).long(), 
+                        torch.zeros([batch_size, 4, 101, 30]), 
+                        torch.randint(0, 10000, [batch_size])
+                    )
+            else:
+                batch = tuple(task_iter_train.next()) # get the batch
+                # for item in batch:
+                #     print(item.data)
+                # exit()
+            
             if is_forward:  
                 
                 if isIPU:
