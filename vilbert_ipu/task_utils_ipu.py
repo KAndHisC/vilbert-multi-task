@@ -10,6 +10,7 @@ import logging
 import numpy as np
 from poptorch.optim import AdamW
 from pytorch_transformers.optimization import WarmupConstantSchedule, WarmupLinearSchedule
+import torch
 import torch.distributed as dist
 import poptorch
 from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts, ReduceLROnPlateau
@@ -177,6 +178,61 @@ def LoadDatasets(args, task_cfg, task_ids, opts, split="trainval"):
                 # pin_memory=True,
             )
 
+    return (
+        task_batch_size,
+        task_num_iters,
+        task_datasets_train,
+        task_datasets_val,
+        task_dataloader_train,
+        task_dataloader_val,
+    )
+
+class FakeDataBuilder:
+    def __init__(self, batch_size) -> None:
+        self.batch_size = batch_size
+    def next(self):
+        batch_size = self.batch_size
+        return (
+            torch.rand(batch_size, 4, 101, 2048), 
+            torch.rand(batch_size, 4, 101, 5), 
+            torch.ones([batch_size, 4, 101]).long(), 
+            torch.randint(0, 10000, [batch_size, 4, 30]), 
+            torch.zeros([batch_size]).long(), 
+            torch.randint(0, 1, [batch_size, 4, 30]), 
+            torch.zeros([batch_size, 4, 30]).long(), 
+            torch.zeros([batch_size, 4, 101, 30]), 
+            torch.randint(0, 10000, [batch_size])
+        )
+
+def GenFakeDatasets(args, task_cfg, task_ids, opts, split="trainval"):
+    task_datasets_train = {}
+    task_datasets_val = {}
+    task_dataloader_train = {}
+    task_dataloader_val = {}
+    task_batch_size = {}
+    task_num_iters = {}
+
+    for _, task in enumerate(task_ids):
+        batch_size = task_cfg[task]["batch_size"] // args.gradient_accumulation_steps  
+        logger.info(
+            "Loading %s Dataset with batch size %d"
+            % (task_cfg[task]["name"], batch_size)
+        )
+
+        
+
+        task_datasets_train[task] = None
+        if "train" in split:
+            task_dataloader_train[task] = FakeDataBuilder(batch_size)
+
+        task_dataloader_val[task] = None
+        if "val" in split:
+            task_datasets_val[task] = FakeDataBuilder(batch_size)
+
+        task_num_iters[task] = 100
+        task_batch_size[task] = 0
+        if "train" in split:
+            task_batch_size[task] = batch_size
     return (
         task_batch_size,
         task_num_iters,
@@ -438,6 +494,11 @@ def GetParser():
         "--enable_IPU",
         action="store_true",
         help="whether use IPU to training.",
+    )
+    parser.add_argument(
+        "--use_fake_data",
+        action="store_true",
+        help="whether use fake data to training.",
     )
     return parser
 

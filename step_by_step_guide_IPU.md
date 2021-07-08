@@ -110,6 +110,7 @@ you can run a example by this bash script `run_retrevalFlicker30K_task.sh` .
 ```
 bash run_retrevalFlicker30K_task.sh
 bash run_retrevalFlicker30K_task.sh --enable_IPU
+bash run_retrevalFlicker30K_task.sh --enable_IPU --use_fake_data
 ```
 the code for training finetune of RetrievalFlickr30k is a simplified version of multi-tasks training which can help understand ViL BERT easier. The training loop is in vilbert-multi-task/train_retrieval_ipu.py.
 

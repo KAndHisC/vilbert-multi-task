@@ -76,12 +76,20 @@ def main():
         print("\n", file=f)
         print(config, file=f)
 
-    # IPU
-    from vilbert_ipu.task_utils_ipu import LoadDatasets
-    task_batch_size, task_num_iters, task_datasets_train, task_datasets_val, task_dataloader_train, task_dataloader_val = LoadDatasets(
-        args, task_cfg, [task_id], opts
-    )
-
+    # use_fake_data 
+    print("use_fake_data: ", args.use_fake_data)
+    if args.use_fake_data:
+        
+        task_batch_size, task_num_iters, task_datasets_train, task_datasets_val, task_dataloader_train, task_dataloader_val = task_utils_ipu.GenFakeDatasets(
+            args, task_cfg, [task_id], opts
+        )
+        num_labels = 1
+    else:
+        task_batch_size, task_num_iters, task_datasets_train, task_datasets_val, task_dataloader_train, task_dataloader_val = task_utils_ipu.LoadDatasets(
+            args, task_cfg, [task_id], opts
+        )
+        num_labels = max([dataset.num_labels for dataset in task_datasets_train.values()])
+        print("num_labels", num_labels)
     # only single task
     task_dataloader_train=task_dataloader_train[task_id]
 
@@ -115,6 +123,7 @@ def main():
         * args.train_iter_multiplier
         / args.num_train_epochs
     )
+    print("median_num_iter", median_num_iter)
     task_stop_controller = utils.MultiTaskStopOnPlateau(
         mode="max",
         patience=1,
@@ -123,7 +132,7 @@ def main():
         threshold=0.001,
     )
 
-    num_labels = max([dataset.num_labels for dataset in task_datasets_train.values()])
+    
 
     if args.dynamic_attention:
         config.dynamic_attention = True
@@ -202,41 +211,31 @@ def main():
             # given the current task, decided whether to forward the model and forward with specific loss.
 
             # reset the task iteration when needed.
-            if task_count % len(task_dataloader_train) == 0:
-                task_iter_train = iter(task_dataloader_train)
-
-            task_count += 1
-            fake_data = True
-            if fake_data:
-                batch_size = task_batch_size[task_id]
-                batch = (
-                        torch.rand(batch_size, 4, 101, 2048), 
-                        torch.rand(batch_size, 4, 101, 5), 
-                        torch.ones([batch_size, 4, 101]).long(), 
-                        torch.randint(0, 10000, [batch_size, 4, 30]), 
-                        torch.zeros([batch_size]).long(), 
-                        torch.randint(0, 1, [batch_size, 4, 30]), 
-                        torch.zeros([batch_size, 4, 30]).long(), 
-                        torch.zeros([batch_size, 4, 101, 30]), 
-                        torch.randint(0, 10000, [batch_size])
-                    )
-            else:
-                batch = tuple(task_iter_train.next()) # get the batch
-                # for item in batch:
-                #     print(item.data)
-                # exit()
             
+
+            
+            
+            if args.use_fake_data:
+                batch = task_dataloader_train.next()
+            else:
+                if task_count % len(task_dataloader_train) == 0:
+                    task_iter_train = iter(task_dataloader_train)
+                batch = tuple(task_iter_train.next()) # get the batch
+            
+            task_count += 1
+
             if is_forward:  
                 
                 if isIPU:
                     score, loss = train_model(batch) 
+                    # IPU will auto backforward
                 else:
                     score, loss = model(batch)   #  test in CPU first to make sure there is no error in model
-
-                # loss.backward() # IPU will auto backforward
+                    loss.backward() 
+                
                 if (step + 1) % args.gradient_accumulation_steps == 0:
-
-                    # optimizer.step() 
+                    if not isIPU:
+                        optimizer.step() 
                     # model.zero_grad()
                     if global_step < warmpu_steps or args.lr_scheduler == "warmup_linear":
                         warmup_scheduler.step()
@@ -264,26 +263,26 @@ def main():
                 tbLogger.showLossTrain()
 
             # decided whether to evaluate on each tasks.
-            if (iterId != 0 and iterId % task_num_iters[task_id] == 0) or (
-                epochId == args.num_train_epochs - 1 and step == median_num_iter - 1
-            ):
-                model.eval()
-                for i, batch in enumerate(task_dataloader_val[task_id]):
-                    if isIPU:
-                        _, batch_size, _, loss = inference_model(batch)
-                    else:
-                        _, batch_size, _, loss = model(batch) # test in CPU
-                    tbLogger.step_val(
-                        epochId, float(loss), float(score), task_id, batch_size, "val"
-                    )
-                    # if default_gpu:
-                    sys.stdout.write("%d/%d\r" % (i, len(task_dataloader_val[task_id])))
-                    sys.stdout.flush()
+            # if (iterId != 0 and iterId % task_num_iters[task_id] == 0) or (
+            #     epochId == args.num_train_epochs - 1 and step == median_num_iter - 1
+            # ):
+            #     model.eval()
+            #     for i, batch in enumerate(task_dataloader_val[task_id]):
+            #         if isIPU:
+            #             _, batch_size, _, loss = inference_model(batch)
+            #         else:
+            #             _, batch_size, _, loss = model(batch) # test in CPU
+            #         tbLogger.step_val(
+            #             epochId, float(loss), float(score), task_id, batch_size, "val"
+            #         )
+            #         # if default_gpu:
+            #         sys.stdout.write("%d/%d\r" % (i, len(task_dataloader_val[task_id])))
+            #         sys.stdout.flush()
 
-                # update the multi-task scheduler.
-                task_stop_controller.step(tbLogger.getValScore(task_id))
-                score = tbLogger.showLossVal(task_id, task_stop_controller)
-                model.train()
+            #     # update the multi-task scheduler.
+            #     task_stop_controller.step(tbLogger.getValScore(task_id))
+            #     score = tbLogger.showLossVal(task_id, task_stop_controller)
+            #     model.train()
 
         if args.lr_scheduler == "automatic":
             lr_scheduler.step(sum(tbLogger.showLossValAll().values()))
