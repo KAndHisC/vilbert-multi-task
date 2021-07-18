@@ -294,27 +294,27 @@ class BertConfig(object):
         return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
 
 
-try:
-    from apex.normalization.fused_layer_norm import FusedLayerNorm as BertLayerNorm
-except ImportError:
-    logger.info(
-        "Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex ."
-    )
+# try:
+#     from apex.normalization.fused_layer_norm import FusedLayerNorm as BertLayerNorm
+# except ImportError:
+#     logger.info(
+#         "Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex ."
+#     )
 
-    class BertLayerNorm(nn.Module):
-        def __init__(self, hidden_size, eps=1e-12):
-            """Construct a layernorm module in the TF style (epsilon inside the square root).
-            """
-            super(BertLayerNorm, self).__init__()
-            self.weight = nn.Parameter(torch.ones(hidden_size))
-            self.bias = nn.Parameter(torch.zeros(hidden_size))
-            self.variance_epsilon = eps
+class BertLayerNorm(nn.Module):
+    def __init__(self, hidden_size, eps=1e-12):
+        """Construct a layernorm module in the TF style (epsilon inside the square root).
+        """
+        super(BertLayerNorm, self).__init__()
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.bias = nn.Parameter(torch.zeros(hidden_size))
+        self.variance_epsilon = eps
 
-        def forward(self, x):
-            u = x.mean(-1, keepdim=True)
-            s = (x - u).pow(2).mean(-1, keepdim=True)
-            x = (x - u) / torch.sqrt(s + self.variance_epsilon)
-            return self.weight * x + self.bias
+    def forward(self, x):
+        u = x.mean(-1, keepdim=True)
+        s = (x - u).pow(2).mean(-1, keepdim=True)
+        x = (x - u) / torch.sqrt(s + self.variance_epsilon)
+        return self.weight * x + self.bias
 
 
 class BertEmbeddings(nn.Module):
@@ -1599,7 +1599,8 @@ class BertForMultiModalPreTraining(BertPreTrainedModel):
 
 
 class VILBertForVLTasks(BertPreTrainedModel):
-    def __init__(self, config, num_labels, dropout_prob=0.1, default_gpu=True):
+    # def __init__(self, config, num_labels, dropout_prob=0.1, default_gpu=True):
+    def __init__(self, config, num_labels, dropout_prob=0.1):
         super(VILBertForVLTasks, self).__init__(config)
         self.num_labels = num_labels
 

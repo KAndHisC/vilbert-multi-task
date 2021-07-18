@@ -194,7 +194,7 @@ def main():
     print('enable_IPU: ', isIPU)
 
     train_model = poptorch.trainingModel(model, options=opts, optimizer=optimizer)
-    inference_model = poptorch.inferenceModel(model, options=opts)
+    # inference_model = poptorch.inferenceModel(model, options=opts)
 
     for epochId in tqdm(range(start_epoch, args.num_train_epochs), desc="Epoch"):
         

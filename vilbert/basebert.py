@@ -59,27 +59,27 @@ def swish(x):
 ACT2FN = {"gelu": gelu, "relu": torch.nn.functional.relu, "swish": swish}
 
 
-try:
-    from apex.normalization.fused_layer_norm import FusedLayerNorm as BertLayerNorm
-except ImportError:
-    logger.info(
-        "Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex ."
-    )
+# try:
+#     from apex.normalization.fused_layer_norm import FusedLayerNorm as BertLayerNorm
+# except ImportError:
+#     logger.info(
+#         "Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex ."
+#     )
 
-    class BertLayerNorm(nn.Module):
-        def __init__(self, hidden_size, eps=1e-12):
-            """Construct a layernorm module in the TF style (epsilon inside the square root).
-            """
-            super(BertLayerNorm, self).__init__()
-            self.weight = nn.Parameter(torch.ones(hidden_size))
-            self.bias = nn.Parameter(torch.zeros(hidden_size))
-            self.variance_epsilon = eps
+class BertLayerNorm(nn.Module):
+    def __init__(self, hidden_size, eps=1e-12):
+        """Construct a layernorm module in the TF style (epsilon inside the square root).
+        """
+        super(BertLayerNorm, self).__init__()
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.bias = nn.Parameter(torch.zeros(hidden_size))
+        self.variance_epsilon = eps
 
-        def forward(self, x):
-            u = x.mean(-1, keepdim=True)
-            s = (x - u).pow(2).mean(-1, keepdim=True)
-            x = (x - u) / torch.sqrt(s + self.variance_epsilon)
-            return self.weight * x + self.bias
+    def forward(self, x):
+        u = x.mean(-1, keepdim=True)
+        s = (x - u).pow(2).mean(-1, keepdim=True)
+        x = (x - u) / torch.sqrt(s + self.variance_epsilon)
+        return self.weight * x + self.bias
 
 
 class BertPreTrainedModel(nn.Module):
@@ -887,11 +887,11 @@ class BertForMultiModalPreTraining(BertPreTrainedModel):
 
             return masked_lm_loss, masked_img_loss, next_sentence_loss
         else:
-            return prediction_scores, seq_relationship_score, prediction_scores_v
+            return prediction_scores_v, seq_relationship_score, prediction_scores_v
 
 
 class BaseBertForVLTasks(BertPreTrainedModel):
-    def __init__(self, config, num_labels, dropout_prob=0.1, default_gpu=True):
+    def __init__(self, config, num_labels, dropout_prob=0.1):
         super(BaseBertForVLTasks, self).__init__(config)
         self.num_labels = num_labels
         self.bert = BertModel(config)

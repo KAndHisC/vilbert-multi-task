@@ -28,6 +28,7 @@ def get_options(config=None)->poptorch.Options:
     custom_opts = poptorch.Options()
     custom_opts.deviceIterations(1)
     custom_opts.replicationFactor(1)
+    custom_opts.Training.gradientAccumulation(7)
     custom_opts.randomSeed(99)
     return custom_opts
 

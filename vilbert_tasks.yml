@@ -139,7 +139,7 @@ TASK8:
   val_annotations_jsonpath: data/datasets/flickr30k/all_data_final_test_set0_2014.jsonline
   max_seq_length: 30
   max_region_num: 101
-  batch_size: 1
+  batch_size: 7
   train_split: train
   val_split: val
   lr: 0.00002
