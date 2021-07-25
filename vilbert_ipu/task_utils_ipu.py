@@ -8,7 +8,7 @@ from io import open
 import json
 import logging
 import numpy as np
-from poptorch.optim import AdamW
+from poptorch.optim import AdamW, SGD
 from pytorch_transformers.optimization import WarmupConstantSchedule, WarmupLinearSchedule
 import torch
 import torch.distributed as dist
@@ -451,7 +451,9 @@ def GetOptimizer(args, model, base_lr, median_num_iter):
     print(len(list(model.named_parameters())),
           len(optimizer_grouped_parameters))
     # if args.optim == "AdamW":
-    optimizer = AdamW(optimizer_grouped_parameters, lr=base_lr, bias_correction=False)
+    # optimizer = AdamW(optimizer_grouped_parameters, lr=base_lr, bias_correction=False)
+    # TODO-- it seems something wrong will happen in AdamW
+    optimizer = SGD(optimizer_grouped_parameters, lr=base_lr, use_combined_accum=True)
     # optimizer = AdamW(model.named_parameters(),  lr=base_lr, bias_correction=False)
 
 

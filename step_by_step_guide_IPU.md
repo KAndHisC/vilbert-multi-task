@@ -89,7 +89,7 @@ get models, you can put the model in other places if you want
 # cd vilbert-multi-task/
 # mkdir save
 # cd save 
-# mdkir origin
+# mkdir origin
 # cd origin
 wget https://dl.fbaipublicfiles.com/vilbert-multi-task/pretrained_model.bin
 wget https://dl.fbaipublicfiles.com/vilbert-multi-task/multi_task_model.bin

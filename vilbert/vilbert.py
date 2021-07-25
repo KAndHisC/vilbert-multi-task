@@ -135,8 +135,8 @@ def swish(x):
     return x * torch.sigmoid(x)
 
 
-ACT2FN = {"gelu": gelu, "relu": torch.nn.functional.relu, "swish": swish}
-
+# ACT2FN = {"gelu": gelu, "relu": torch.nn.functional.relu, "swish": swish}
+ACT2FN = {"gelu": torch.nn.functional.gelu, "relu": torch.nn.functional.relu, "swish": swish}
 
 class BertConfig(object):
     """Configuration class to store the configuration of a `BertModel`.
@@ -347,7 +347,8 @@ class BertEmbeddings(nn.Module):
 
         seq_length = input_ids.size(1)
         position_ids = torch.arange(
-            seq_length, dtype=torch.long, device=input_ids.device
+            # seq_length, dtype=torch.long, device=input_ids.device
+            seq_length, dtype=torch.long
         )
         position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
         words_embeddings = self.word_embeddings(input_ids)
@@ -952,9 +953,9 @@ class BertEncoder(nn.Module):
         all_attention_mask_t = []
         all_attnetion_mask_v = []
         all_attention_mask_c = []
-
-        batch_size, num_words, t_hidden_size = txt_embedding.size()
-        _, num_regions, v_hidden_size = image_embedding.size()
+        # not used
+        # batch_size, num_words, t_hidden_size = txt_embedding.size()
+        # _, num_regions, v_hidden_size = image_embedding.size()
 
         use_co_attention_mask = False
         for v_layer_id, t_layer_id in zip(self.v_biattention_id, self.t_biattention_id):
@@ -1005,52 +1006,54 @@ class BertEncoder(nn.Module):
                 if output_all_attention_masks:
                     all_attnetion_mask_v.append(image_attention_probs)
 
-            if count == 0 and self.in_batch_pairs:
-                # new batch size is the batch_size ^2
-                image_embedding = (
-                    image_embedding.unsqueeze(0)
-                    .expand(batch_size, batch_size, num_regions, v_hidden_size)
-                    .contiguous()
-                    .view(batch_size * batch_size, num_regions, v_hidden_size)
-                )
-                image_attention_mask = (
-                    image_attention_mask.unsqueeze(0)
-                    .expand(batch_size, batch_size, 1, 1, num_regions)
-                    .contiguous()
-                    .view(batch_size * batch_size, 1, 1, num_regions)
-                )
+            # not used TODO--
+            # if count == 0 and self.in_batch_pairs:
+            #     # new batch size is the batch_size ^2
+            #     image_embedding = (
+            #         image_embedding.unsqueeze(0)
+            #         .expand(batch_size, batch_size, num_regions, v_hidden_size)
+            #         .contiguous()
+            #         .view(batch_size * batch_size, num_regions, v_hidden_size)
+            #     )
+            #     image_attention_mask = (
+            #         image_attention_mask.unsqueeze(0)
+            #         .expand(batch_size, batch_size, 1, 1, num_regions)
+            #         .contiguous()
+            #         .view(batch_size * batch_size, 1, 1, num_regions)
+            #     )
 
-                txt_embedding = (
-                    txt_embedding.unsqueeze(1)
-                    .expand(batch_size, batch_size, num_words, t_hidden_size)
-                    .contiguous()
-                    .view(batch_size * batch_size, num_words, t_hidden_size)
-                )
-                txt_attention_mask = (
-                    txt_attention_mask.unsqueeze(1)
-                    .expand(batch_size, batch_size, 1, 1, num_words)
-                    .contiguous()
-                    .view(batch_size * batch_size, 1, 1, num_words)
-                )
-                co_attention_mask = (
-                    co_attention_mask.unsqueeze(1)
-                    .expand(batch_size, batch_size, 1, num_regions, num_words)
-                    .contiguous()
-                    .view(batch_size * batch_size, 1, num_regions, num_words)
-                )
+            #     txt_embedding = (
+            #         txt_embedding.unsqueeze(1)
+            #         .expand(batch_size, batch_size, num_words, t_hidden_size)
+            #         .contiguous()
+            #         .view(batch_size * batch_size, num_words, t_hidden_size)
+            #     )
+            #     txt_attention_mask = (
+            #         txt_attention_mask.unsqueeze(1)
+            #         .expand(batch_size, batch_size, 1, 1, num_words)
+            #         .contiguous()
+            #         .view(batch_size * batch_size, 1, 1, num_words)
+            #     )
+            #     co_attention_mask = (
+            #         co_attention_mask.unsqueeze(1)
+            #         .expand(batch_size, batch_size, 1, num_regions, num_words)
+            #         .contiguous()
+            #         .view(batch_size * batch_size, 1, num_regions, num_words)
+            #     )
 
-            if count == 0 and self.FAST_MODE:
-                txt_embedding = txt_embedding.expand(
-                    image_embedding.size(0),
-                    txt_embedding.size(1),
-                    txt_embedding.size(2),
-                )
-                txt_attention_mask = txt_attention_mask.expand(
-                    image_embedding.size(0),
-                    txt_attention_mask.size(1),
-                    txt_attention_mask.size(2),
-                    txt_attention_mask.size(3),
-                )
+            # not used
+            # if count == 0 and self.FAST_MODE:
+            #     txt_embedding = txt_embedding.expand(
+            #         image_embedding.size(0),
+            #         txt_embedding.size(1),
+            #         txt_embedding.size(2),
+            #     )
+            #     txt_attention_mask = txt_attention_mask.expand(
+            #         image_embedding.size(0),
+            #         txt_attention_mask.size(1),
+            #         txt_attention_mask.size(2),
+            #         txt_attention_mask.size(3),
+            #     )
 
             if self.with_coattention:
                 # do the bi attention.
@@ -1228,13 +1231,14 @@ class BertPreTrainingHeads(nn.Module):
     def forward(
         self, sequence_output_t, sequence_output_v, pooled_output_t, pooled_output_v
     ):
-
-        if self.fusion_method == "sum":
-            pooled_output = self.dropout(pooled_output_t + pooled_output_v)
-        elif self.fusion_method == "mul":
-            pooled_output = self.dropout(pooled_output_t * pooled_output_v)
-        else:
-            assert False
+        # TODO--
+        # if self.fusion_method == "sum":
+        #     pooled_output = self.dropout(pooled_output_t + pooled_output_v)
+        # elif self.fusion_method == "mul":
+        #     pooled_output = self.dropout(pooled_output_t * pooled_output_v)
+        # else:
+        #     assert False
+        pooled_output = self.dropout(pooled_output_t * pooled_output_v)
 
         prediction_scores_t = self.predictions(sequence_output_t)
         seq_relationship_score = self.bi_seq_relationship(pooled_output)
@@ -1330,7 +1334,7 @@ class BertModel(BertPreTrainedModel):
 
         if self.task_specific_tokens:
             # extend the mask
-            # mask_tokens = input_txt.new().resize_().fill_(1)
+            # mask_tokens = input_txt.new().resize_(input_txt.size(0), 1).fill_(1)
             mask_tokens = torch.full( (input_txt.size(0), 1), 1, dtype=input_txt.dtype)
             attention_mask = torch.cat([mask_tokens, attention_mask], dim=1)
 
@@ -1505,22 +1509,30 @@ class BertForMultiModalPreTraining(BertPreTrainedModel):
             and image_target is not None
         ):
             prediction_scores_v = prediction_scores_v[:, 1:]
+
+            # TODO-- not used in retreval task
+            # print(image_label)
+            # print(image_label.eq(1))
+            # print(self.visual_target)
+
             if self.visual_target == 1:
                 img_loss = self.vis_criterion(prediction_scores_v, image_target)
-                masked_img_loss = torch.sum(
-                    img_loss * (image_label == 1).unsqueeze(2).float()
-                ) / max(
-                    torch.sum((image_label == 1).unsqueeze(2).expand_as(img_loss)), 1
+                # masked_img_loss = torch.sum(
+                    # img_loss * (image_label == 1).unsqueeze(2).float()
+                masked_img_loss = img_loss * (image_label.eq(1)).unsqueeze(2).float().sum() / max(
+                    # torch.sum((image_label == 1).unsqueeze(2).expand_as(img_loss)), 1
+                    image_label.eq(1).unsqueeze(2).expand_as(img_loss).sum(), 1
                 )
-
             elif self.visual_target == 0:
                 img_loss = self.vis_criterion(
                     F.log_softmax(prediction_scores_v, dim=2), image_target
                 )
 
-                masked_img_loss = torch.sum(
-                    img_loss * (image_label == 1).unsqueeze(2).float()
-                ) / max(torch.sum((image_label == 1)), 0)
+                # masked_img_loss = torch.sum(
+                    # img_loss * (image_label == 1).unsqueeze(2).float()
+                masked_img_loss = img_loss * (image_label.eq(1)).unsqueeze(2).float().sum() / max(
+                # ) / max(torch.sum((image_label == 1)), 0)
+                 image_label.eq(1).sum(), 0  )
             elif self.visual_target == 2:
                 # generate negative sampled index.
                 num_negative = self.num_negative
@@ -1538,7 +1550,8 @@ class BertForMultiModalPreTraining(BertPreTrainedModel):
                 ).random_(0, num_regions)
 
                 for i in range(batch_size - 1):
-                    row_across_index[i][row_across_index[i] == i] = batch_size - 1
+                    # row_across_index[i][row_across_index[i] == i] = batch_size - 1
+                    row_across_index[i][row_across_index[i].eq(i)] = batch_size - 1
                 final_across_index = row_across_index * num_regions + col_across_index
 
                 # random negative inside batches.
@@ -1552,7 +1565,8 @@ class BertForMultiModalPreTraining(BertPreTrainedModel):
                 for i in range(batch_size):
                     row_inside_index[i] = i
                 for i in range(num_regions - 1):
-                    col_inside_index[:, i, :][col_inside_index[:, i, :] == i] = (
+                    # col_inside_index[:, i, :][col_inside_index[:, i, :] == i] = (
+                    col_inside_index[:, i, :][col_inside_index[:, i, :].eq(i)] = (
                         num_regions - 1
                     )
                 final_inside_index = row_inside_index * num_regions + col_inside_index
@@ -1560,13 +1574,16 @@ class BertForMultiModalPreTraining(BertPreTrainedModel):
                 final_index = torch.cat((final_across_index, final_inside_index), dim=2)
 
                 # Let's first sample where we need to compute.
-                predict_v = prediction_scores_v[image_label == 1]
-                neg_index_v = final_index[image_label == 1]
+                # predict_v = prediction_scores_v[image_label == 1]
+                predict_v = prediction_scores_v[image_label.eq(1)]
+                # neg_index_v = final_index[image_label == 1]
+                neg_index_v = final_index[image_label.eq(1)]
 
                 flat_image_target = image_target.view(batch_size * num_regions, -1)
                 # we also need to append the target feature at the begining.
                 negative_v = flat_image_target[neg_index_v]
-                positive_v = image_target[image_label == 1]
+                # positive_v = image_target[image_label == 1]
+                positive_v = image_target[image_label.eq(1)]
                 sample_v = torch.cat((positive_v.unsqueeze(1), negative_v), dim=1)
 
                 # calculate the loss.
@@ -1679,15 +1696,19 @@ class VILBertForVLTasks(BertPreTrainedModel):
             sequence_output_t, sequence_output_v, pooled_output_t, pooled_output_v
         )
 
-        if self.fusion_method == "sum":
-            pooled_output = self.dropout(pooled_output_t + pooled_output_v)
-        elif self.fusion_method == "mul":
-            pooled_output = self.dropout(pooled_output_t * pooled_output_v)
-        else:
-            assert False
+        # TODO--
+        # if self.fusion_method == "sum":
+        #     pooled_output = self.dropout(pooled_output_t + pooled_output_v)
+        # elif self.fusion_method == "mul":
+        #     pooled_output = self.dropout(pooled_output_t * pooled_output_v)
+        # else:
+        #     assert False
+        pooled_output = self.dropout(pooled_output_t * pooled_output_v)
 
         vil_prediction = self.vil_prediction(pooled_output)
         vil_prediction_gqa = self.vil_prediction_gqa(pooled_output)
+
+        # TODO--
         # if pooled_output.size(0) % 2 == 0:
         # pooled_output.size(0) return tensor(0) in sometimes and 0 in the other times
         # it was unstable, so just give up this condition.
