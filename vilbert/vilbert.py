@@ -13,7 +13,8 @@ import tarfile
 import tempfile
 import sys
 from io import open
-from pytorch_transformers.modeling_bert import load_tf_weights_in_bert
+from vilbert import BERT_PRETRAINED_MODEL_ARCHIVE_MAP, ACT2FN, load_tf_weights_in_bert, GeLU
+from vilbert.basebert import BertLayerNorm, BertIntermediate, BertLMPredictionHead, BertOutput, BertSelfOutput
 
 import torch
 from torch import nn
@@ -185,14 +186,6 @@ class BertConfig(object):
         return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
 
 
-# try:
-#     from apex.normalization.fused_layer_norm import FusedLayerNorm as BertLayerNorm
-# except ImportError:
-#     logger.info(
-#         "Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex ."
-#     )
-
-
 class BertEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings.
     """
@@ -337,20 +330,6 @@ class BertSelfAttention(nn.Module):
         return context_layer, attn_data
 
 
-class BertSelfOutput(nn.Module):
-    def __init__(self, config):
-        super(BertSelfOutput, self).__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-
-    def forward(self, hidden_states, input_tensor):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        return hidden_states
-
-
 class BertAttention(nn.Module):
     def __init__(self, config):
         super(BertAttention, self).__init__()
@@ -361,38 +340,6 @@ class BertAttention(nn.Module):
         self_output, attention_probs = self.self(input_tensor, attention_mask)
         attention_output = self.output(self_output, input_tensor)
         return attention_output, attention_probs
-
-
-class BertIntermediate(nn.Module):
-    def __init__(self, config):
-        super(BertIntermediate, self).__init__()
-        self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
-        if isinstance(config.hidden_act, str) or (
-            sys.version_info[0] == 2 and isinstance(config.hidden_act, str)
-        ):
-            self.intermediate_act_fn = ACT2FN[config.hidden_act]
-        else:
-            self.intermediate_act_fn = config.hidden_act
-
-    def forward(self, hidden_states):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.intermediate_act_fn(hidden_states)
-        return hidden_states
-
-
-class BertOutput(nn.Module):
-    def __init__(self, config):
-        super(BertOutput, self).__init__()
-        self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
-        self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-
-    def forward(self, hidden_states, input_tensor):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        return hidden_states
-
 
 class BertLayer(nn.Module):
     def __init__(self, config):
@@ -1016,25 +963,6 @@ class BertImagePooler(nn.Module):
         return pooled_output
 
 
-class BertPredictionHeadTransform(nn.Module):
-    def __init__(self, config):
-        super(BertPredictionHeadTransform, self).__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        if isinstance(config.hidden_act, str) or (
-            sys.version_info[0] == 2 and isinstance(config.hidden_act, str)
-        ):
-            self.transform_act_fn = ACT2FN[config.hidden_act]
-        else:
-            self.transform_act_fn = config.hidden_act
-        self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
-
-    def forward(self, hidden_states):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.transform_act_fn(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states)
-        return hidden_states
-
-
 class BertImgPredictionHeadTransform(nn.Module):
     def __init__(self, config):
         super(BertImgPredictionHeadTransform, self).__init__()
@@ -1052,37 +980,6 @@ class BertImgPredictionHeadTransform(nn.Module):
         hidden_states = self.transform_act_fn(hidden_states)
         hidden_states = self.LayerNorm(hidden_states)
         return hidden_states
-
-
-class BertLMPredictionHead(nn.Module):
-    def __init__(self, config, bert_model_embedding_weights):
-        super(BertLMPredictionHead, self).__init__()
-        self.transform = BertPredictionHeadTransform(config)
-
-        # The output weights are the same as the input embeddings, but there is
-        # an output-only bias for each token.
-        self.decoder = nn.Linear(
-            bert_model_embedding_weights.size(1),
-            bert_model_embedding_weights.size(0),
-            bias=False,
-        )
-        self.decoder.weight = bert_model_embedding_weights
-        self.bias = nn.Parameter(torch.zeros(bert_model_embedding_weights.size(0)))
-
-    def forward(self, hidden_states):
-        hidden_states = self.transform(hidden_states)
-        hidden_states = self.decoder(hidden_states) + self.bias
-        return hidden_states
-
-
-class BertOnlyMLMHead(nn.Module):
-    def __init__(self, config, bert_model_embedding_weights):
-        super(BertOnlyMLMHead, self).__init__()
-        self.predictions = BertLMPredictionHead(config, bert_model_embedding_weights)
-
-    def forward(self, sequence_output):
-        prediction_scores = self.predictions(sequence_output)
-        return prediction_scores
 
 
 class BertOnlyNSPHead(nn.Module):
@@ -1625,18 +1522,3 @@ class SimpleClassifier(nn.Module):
     def forward(self, hidden_states):
         return self.logit_fc(hidden_states)
 
-
-# class SimpleClassifier(nn.Module):
-#     def __init__(self, in_dim, hid_dim, out_dim, dropout):
-#         super(SimpleClassifier, self).__init__()
-#         layers = [
-#             weight_norm(nn.Linear(in_dim, hid_dim), dim=None),
-#             nn.ReLU(),
-#             nn.Dropout(dropout, inplace=True),
-#             weight_norm(nn.Linear(hid_dim, out_dim), dim=None)
-#         ]
-#         self.main = nn.Sequential(*layers)
-
-#     def forward(self, x):
-#         logits = self.main(x)
-#         return logits

@@ -15,6 +15,7 @@ import tarfile
 import tempfile
 import sys
 from io import open
+from vilbert import PRETRAINED_MODEL_ARCHIVE_MAP, ACT2FN, load_tf_weights_in_bert
 
 import torch
 from torch import nn
@@ -22,7 +23,7 @@ import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 from vilbert import PRETRAINED_MODEL_ARCHIVE_MAP, gelu, swish
 from vilbert.utils import cached_path
-from pytorch_transformers.modeling_bert import BertConfig, load_tf_weights_in_bert
+from transformers.models.bert.modeling_bert import BertConfig
 import pdb
 from torch.nn.utils.weight_norm import weight_norm
 
@@ -489,25 +490,6 @@ class BertPooler(nn.Module):
         return pooled_output
 
 
-class BertPredictionHeadTransform(nn.Module):
-    def __init__(self, config):
-        super(BertPredictionHeadTransform, self).__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        if isinstance(config.hidden_act, str) or (
-            sys.version_info[0] == 2 and isinstance(config.hidden_act, str)
-        ):
-            self.transform_act_fn = ACT2FN[config.hidden_act]
-        else:
-            self.transform_act_fn = config.hidden_act
-        self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
-
-    def forward(self, hidden_states):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.transform_act_fn(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states)
-        return hidden_states
-
-
 class BertLMPredictionHead(nn.Module):
     def __init__(self, config, bert_model_embedding_weights):
         super(BertLMPredictionHead, self).__init__()
@@ -596,6 +578,7 @@ class BertImagePredictionHead(nn.Module):
 
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
+        # TODO-- hard code
         self.decoder = nn.Linear(bert_model_embedding_weights.size(1), 1601)
 
     def forward(self, hidden_states):
@@ -857,7 +840,7 @@ class BertForMultiModalPreTraining(BertPreTrainedModel):
 
             return masked_lm_loss, masked_img_loss, next_sentence_loss
         else:
-            return prediction_scores_v, seq_relationship_score, prediction_scores_v
+            return prediction_scores_t, seq_relationship_score, prediction_scores_v
 
 
 class BaseBertForVLTasks(BertPreTrainedModel):
