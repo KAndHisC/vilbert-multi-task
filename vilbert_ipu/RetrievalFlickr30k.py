@@ -6,7 +6,6 @@ import torch.nn as nn
 import poptorch
 
 
-
 # from vilbert.basebert import BaseBertForVLTasks
 from vilbert.vilbert import VILBertForVLTasks
 
@@ -83,18 +82,20 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
             print(f"c_layer {index:<2} --> IPU {layers_on_ipu[count]}") # layer 7m * 12 + v_layer 6m*6 + c_layer 17m*6
             count += 1
 
-            v_layer = self.model.bert.encoder.v_layer[index]
-            # v_layer = RecomputationCheckpoint(v_layer) 
-            self.model.bert.encoder.v_layer[index] = poptorch.BeginBlock(v_layer, f"v_layer{index}", ipu_id=layers_on_ipu[count])
-            print(f"v_layer {index:<2} --> IPU {layers_on_ipu[count]}") 
-            count += 1
-
             t_index = index+offset
             t_layer = self.model.bert.encoder.layer[t_index]
             # t_layer = RecomputationCheckpoint(t_layer) 
             self.model.bert.encoder.layer[t_index] = poptorch.BeginBlock(t_layer, f"t_layer{t_index}", ipu_id=layers_on_ipu[count])
             print(f"t_layer {t_index:<2} --> IPU {layers_on_ipu[count]}") 
             count += 1 
+
+            v_layer = self.model.bert.encoder.v_layer[index]
+            # v_layer = RecomputationCheckpoint(v_layer) 
+            self.model.bert.encoder.v_layer[index] = poptorch.BeginBlock(v_layer, f"v_layer{index}", ipu_id=layers_on_ipu[count])
+            print(f"v_layer {index:<2} --> IPU {layers_on_ipu[count]}") 
+            count += 1
+
+            
         
       
         # 3
