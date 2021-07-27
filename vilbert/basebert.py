@@ -15,48 +15,20 @@ import tarfile
 import tempfile
 import sys
 from io import open
+from vilbert import PRETRAINED_MODEL_ARCHIVE_MAP, ACT2FN, load_tf_weights_in_bert
 
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 from vilbert.utils import cached_path
-from pytorch_transformers.modeling_bert import BertConfig
+from transformers.models.bert.modeling_bert import BertConfig
 import pdb
 from torch.nn.utils.weight_norm import weight_norm
 
 # from .file_utils import cached_path
 logger = logging.getLogger(__name__)
 
-
-PRETRAINED_MODEL_ARCHIVE_MAP = {
-    "bert-base-uncased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased.tar.gz",
-    "bert-large-uncased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-uncased.tar.gz",
-    "bert-base-cased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-cased.tar.gz",
-    "bert-large-cased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-cased.tar.gz",
-    "bert-base-multilingual-uncased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-multilingual-uncased.tar.gz",
-    "bert-base-multilingual-cased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-multilingual-cased.tar.gz",
-    "bert-base-chinese": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese.tar.gz",
-}
-CONFIG_NAME = "bert_config.json"
-WEIGHTS_NAME = "pytorch_model.bin"
-TF_WEIGHTS_NAME = "model.ckpt"
-
-
-def gelu(x):
-    """Implementation of the gelu activation function.
-        For information: OpenAI GPT's gelu is slightly different (and gives slightly different results):
-        0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
-        Also see https://arxiv.org/abs/1606.08415
-    """
-    return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
-
-
-def swish(x):
-    return x * torch.sigmoid(x)
-
-
-ACT2FN = {"gelu": gelu, "relu": torch.nn.functional.relu, "swish": swish}
 
 
 # try:
@@ -445,7 +417,7 @@ class BertIntermediate(nn.Module):
         super(BertIntermediate, self).__init__()
         self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
         if isinstance(config.hidden_act, str) or (
-            sys.version_info[0] == 2 and isinstance(config.hidden_act, unicode)
+            sys.version_info[0] == 2 and isinstance(config.hidden_act, str)
         ):
             self.intermediate_act_fn = ACT2FN[config.hidden_act]
         else:
@@ -519,25 +491,6 @@ class BertPooler(nn.Module):
         return pooled_output
 
 
-class BertPredictionHeadTransform(nn.Module):
-    def __init__(self, config):
-        super(BertPredictionHeadTransform, self).__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        if isinstance(config.hidden_act, str) or (
-            sys.version_info[0] == 2 and isinstance(config.hidden_act, unicode)
-        ):
-            self.transform_act_fn = ACT2FN[config.hidden_act]
-        else:
-            self.transform_act_fn = config.hidden_act
-        self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
-
-    def forward(self, hidden_states):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.transform_act_fn(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states)
-        return hidden_states
-
-
 class BertLMPredictionHead(nn.Module):
     def __init__(self, config, bert_model_embedding_weights):
         super(BertLMPredictionHead, self).__init__()
@@ -584,7 +537,7 @@ class BertPredictionHeadTransform(nn.Module):
         super(BertPredictionHeadTransform, self).__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         if isinstance(config.hidden_act, str) or (
-            sys.version_info[0] == 2 and isinstance(config.hidden_act, unicode)
+            sys.version_info[0] == 2 and isinstance(config.hidden_act, str)
         ):
             self.transform_act_fn = ACT2FN[config.hidden_act]
         else:
@@ -626,6 +579,7 @@ class BertImagePredictionHead(nn.Module):
 
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
+        # TODO-- hard code
         self.decoder = nn.Linear(bert_model_embedding_weights.size(1), 1601)
 
     def forward(self, hidden_states):
@@ -887,7 +841,7 @@ class BertForMultiModalPreTraining(BertPreTrainedModel):
 
             return masked_lm_loss, masked_img_loss, next_sentence_loss
         else:
-            return prediction_scores_v, seq_relationship_score, prediction_scores_v
+            return prediction_scores_t, seq_relationship_score, prediction_scores_v
 
 
 class BaseBertForVLTasks(BertPreTrainedModel):
