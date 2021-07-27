@@ -13,7 +13,8 @@ import tarfile
 import tempfile
 import sys
 from io import open
-from vilbert import BERT_PRETRAINED_MODEL_ARCHIVE_MAP, ACT2FN, load_tf_weights_in_bert, GeLU
+from transformers.models.bert.modeling_bert import load_tf_weights_in_bert
+from vilbert import BERT_PRETRAINED_MODEL_ARCHIVE_MAP, ACT2FN, GeLU
 from vilbert.basebert import BertLayerNorm, BertIntermediate, BertLMPredictionHead, BertOutput, BertSelfOutput
 
 import torch
@@ -21,7 +22,7 @@ from torch import nn
 from torch.nn import CrossEntropyLoss
 import torch.nn.functional as F
 from torch.nn.utils.weight_norm import weight_norm
-from vilbert import BERT_PRETRAINED_MODEL_ARCHIVE_MAP, GeLU, gelu, swish
+from vilbert import BERT_PRETRAINED_MODEL_ARCHIVE_MAP, GeLU
 from vilbert.basebert import BertLayerNorm
 
 from .utils import PreTrainedModel
@@ -980,16 +981,6 @@ class BertImgPredictionHeadTransform(nn.Module):
         hidden_states = self.transform_act_fn(hidden_states)
         hidden_states = self.LayerNorm(hidden_states)
         return hidden_states
-
-
-class BertOnlyNSPHead(nn.Module):
-    def __init__(self, config):
-        super(BertOnlyNSPHead, self).__init__()
-        self.seq_relationship = nn.Linear(config.hidden_size, 2)
-
-    def forward(self, pooled_output):
-        seq_relationship_score = self.seq_relationship(pooled_output)
-        return seq_relationship_score
 
 
 class BertPreTrainingHeads(nn.Module):

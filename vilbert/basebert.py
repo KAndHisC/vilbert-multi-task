@@ -15,15 +15,15 @@ import tarfile
 import tempfile
 import sys
 from io import open
-from vilbert import PRETRAINED_MODEL_ARCHIVE_MAP, ACT2FN, load_tf_weights_in_bert
+from vilbert import PRETRAINED_MODEL_ARCHIVE_MAP, ACT2FN
 
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
-from vilbert import PRETRAINED_MODEL_ARCHIVE_MAP, gelu, swish
+from vilbert import PRETRAINED_MODEL_ARCHIVE_MAP
 from vilbert.utils import cached_path
-from transformers.models.bert.modeling_bert import BertConfig
+from transformers.models.bert.modeling_bert import BertConfig, BertPooler, load_tf_weights_in_bert
 import pdb
 from torch.nn.utils.weight_norm import weight_norm
 
@@ -475,21 +475,6 @@ class BertEncoder(nn.Module):
         return all_encoder_layers
 
 
-class BertPooler(nn.Module):
-    def __init__(self, config):
-        super(BertPooler, self).__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.activation = nn.Tanh()
-
-    def forward(self, hidden_states):
-        # We "pool" the model by simply taking the hidden state corresponding
-        # to the first token.
-        first_token_tensor = hidden_states[:, 0]
-        pooled_output = self.dense(first_token_tensor)
-        pooled_output = self.activation(pooled_output)
-        return pooled_output
-
-
 class BertLMPredictionHead(nn.Module):
     def __init__(self, config, bert_model_embedding_weights):
         super(BertLMPredictionHead, self).__init__()
@@ -519,16 +504,6 @@ class BertOnlyMLMHead(nn.Module):
     def forward(self, sequence_output):
         prediction_scores = self.predictions(sequence_output)
         return prediction_scores
-
-
-class BertOnlyNSPHead(nn.Module):
-    def __init__(self, config):
-        super(BertOnlyNSPHead, self).__init__()
-        self.seq_relationship = nn.Linear(config.hidden_size, 2)
-
-    def forward(self, pooled_output):
-        seq_relationship_score = self.seq_relationship(pooled_output)
-        return seq_relationship_score
 
 
 class BertPredictionHeadTransform(nn.Module):
