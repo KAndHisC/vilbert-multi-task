@@ -8,17 +8,11 @@ import poptorch
 
 # from vilbert.basebert import BaseBertForVLTasks
 from vilbert.vilbert import VILBertForVLTasks
+from vilbert_ipu import RecomputationCheckpoint
 
 logger = logging.getLogger(__name__)
 
-class RecomputationCheckpoint(nn.Module):
-    def __init__(self, layer):
-        super().__init__()
-        self.layer = layer
 
-    def forward(self, x):
-        return poptorch.recomputationCheckpoint(self.layer(x))
-        # return tuple(poptorch.recomputationCheckpoint(y) for y in self.layer(x))
 
 class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
     def __init__(self, config, args, num_labels):
@@ -51,7 +45,7 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
 
         
         # 0
-        self.model.bert.embeddings = poptorch.BeginBlock(self.model.bert.embeddings, "embeddings", ipu_id=0) # 24m
+        self.model.bert.embeddings = poptorch.BeginBlock(RecomputationCheckpoint(self.model.bert.embeddings), "embeddings", ipu_id=0) # 24m
         self.model.bert.v_embeddings = poptorch.BeginBlock(self.model.bert.v_embeddings, "v_embeddings", ipu_id=0) # 2m
 
         # self.model.bert.encoder = poptorch.BeginBlock(RecomputationCheckpoint(self.model.bert.encoder) , "encoder", ipu_id=1)
@@ -65,38 +59,36 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
         offset = t_layer_length - c_layer_length
 
         # t_layer 0-10 
-        layers_on_ipu = [0,0,0,1,1,1,1,1,1,1]
+        layers_on_ipu = [0,1,1,1,1,1,1,1,2,2]
         for index in range(offset):
             layer = self.model.bert.encoder.layer[index]
-            # layer = RecomputationCheckpoint(layer) 
+            layer = RecomputationCheckpoint(layer) 
             self.model.bert.encoder.layer[index] = poptorch.BeginBlock(layer, f"t_layer{index}", ipu_id=layers_on_ipu[index])
             print(f"layer {index:<2} --> IPU {layers_on_ipu[index]}") 
 
         # c t v 3*c_layer_length
-        layers_on_ipu = [2,2,2,2,3,3]
+        layers_on_ipu = [2,2,3,3,3,3]
         count = 0
         for index in range(c_layer_length):
             c_layer = self.model.bert.encoder.c_layer[index]
-            # c_layer = RecomputationCheckpoint(c_layer) 
+            c_layer = RecomputationCheckpoint(c_layer) 
             self.model.bert.encoder.c_layer[index] = poptorch.BeginBlock(c_layer, f"c_layer{index}", ipu_id=layers_on_ipu[count])
             print(f"c_layer {index:<2} --> IPU {layers_on_ipu[count]}") # layer 7m * 12 + v_layer 6m*6 + c_layer 17m*6
             count += 1
 
             t_index = index+offset
             t_layer = self.model.bert.encoder.layer[t_index]
-            # t_layer = RecomputationCheckpoint(t_layer) 
+            t_layer = RecomputationCheckpoint(t_layer) 
             self.model.bert.encoder.layer[t_index] = poptorch.BeginBlock(t_layer, f"t_layer{t_index}", ipu_id=layers_on_ipu[count])
             print(f"t_layer {t_index:<2} --> IPU {layers_on_ipu[count]}") 
             count += 1 
 
             v_layer = self.model.bert.encoder.v_layer[index]
-            # v_layer = RecomputationCheckpoint(v_layer) 
+            v_layer = RecomputationCheckpoint(v_layer) 
             self.model.bert.encoder.v_layer[index] = poptorch.BeginBlock(v_layer, f"v_layer{index}", ipu_id=layers_on_ipu[count])
             print(f"v_layer {index:<2} --> IPU {layers_on_ipu[count]}") 
             count += 1
 
-            
-        
       
         # 3
         self.model.bert.t_pooler = poptorch.BeginBlock(self.model.bert.t_pooler, "t_pooler", ipu_id=3) # 1m
@@ -105,7 +97,7 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
 
         self.model.dropout = poptorch.BeginBlock(self.model.dropout, "dropout", ipu_id=3)
         
-        self.model.vil_prediction = poptorch.BeginBlock(self.model.vil_prediction, "vil_prediction", ipu_id=3) # 8m
+        self.model.vil_prediction = poptorch.BeginBlock(RecomputationCheckpoint(self.model.vil_prediction), "vil_prediction", ipu_id=3) # 8m
         self.model.vil_prediction_gqa = poptorch.BeginBlock(self.model.vil_prediction_gqa, "vil_prediction_gqa", ipu_id=3) # 5m
         self.model.vil_binary_prediction = poptorch.BeginBlock(self.model.vil_binary_prediction, "vil_binary_prediction", ipu_id=3) # 4m
 
@@ -147,7 +139,7 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
 
         # some of them not used
         # vil_prediction, vil_prediction_gqa, vil_logit, vil_binary_prediction, vil_tri_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit, all_attention_mask 
-        _, _, vil_logit, _, _, _, _, _, _, _ = self.model(
+        _, _, vil_logit, _, _, _, _, _, _ = self.model(
             question,
             features,
             spatials,
@@ -164,16 +156,18 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
         vil_logit = vil_logit.view(batch_size, num_options)
         loss = self.loss(vil_logit, target)
         _, preds = torch.max(vil_logit, 1)
-        # batch_score = float((preds == target).sum()) 
-        batch_score = preds.eq(target).sum().float()
+        
+        
 
         if self.training:
-            # batch_score = batch_score / float( batch_size)
-            batch_score = batch_score /  batch_size
+            # batch_score = float((preds == target).sum()) 
+            # batch_score = preds.int().eq(target).sum().float()
+            # # batch_score = batch_score / float( batch_size)
+            # batch_score = batch_score /  batch_size
             # loss = loss * self.loss_scale[task_id]
             # if self.gradient_accumulation_steps > 1:
             #     loss = loss / self.args.gradient_accumulation_steps
-            return batch_score, loss
+            return (preds,target), loss
         else:
             probs = torch.softmax(vil_logit, dim=1)
             for i in range(vil_logit.size(0)):
@@ -184,7 +178,7 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
                     }
                 )
             # return float(batch_score), batch_size, results, float(loss)
-            return  batch_score, batch_size, results, loss
+            return  preds, batch_size, results, loss
     
     # def compute_score_with_logits(self, logits, labels):
     #     logits = torch.max(logits, 1)[1].data  # argmax
