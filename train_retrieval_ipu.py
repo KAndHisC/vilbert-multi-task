@@ -228,12 +228,13 @@ def main():
             if is_forward:  
                 
                 if isIPU:
-                    score, loss = train_model(batch) 
+                    result, loss = train_model(batch) 
                     # IPU will auto backforward
                 else:
-                    score, loss = model(batch)   #  test in CPU first to make sure there is no error in model
+                    result, loss = model(batch)   #  test in CPU first to make sure there is no error in model
                     loss.backward() 
-                
+                preds, target = result 
+                score = preds.eq(target).sum().float() / task_dataloader_train.batch_size
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if not isIPU:
                         optimizer.step() 

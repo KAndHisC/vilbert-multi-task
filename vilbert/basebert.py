@@ -338,6 +338,9 @@ class BertSelfAttention(nn.Module):
         self.num_attention_heads = config.num_attention_heads
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
+        
+        # TODO-- self.visualization should be open by hand 
+        # self.visualization = config.visualization
 
         self.query = nn.Linear(config.hidden_size, self.all_head_size)
         self.key = nn.Linear(config.hidden_size, self.all_head_size)
@@ -379,6 +382,17 @@ class BertSelfAttention(nn.Module):
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
+
+        # TODO-- self.visualization should be open by hand 
+        # attn_data = None
+        # if self.visualization:
+        #     attn_data = {
+        #         "attn": attention_probs,
+        #         "queries": query_layer,
+        #         "keys": key_layer,
+        #     }
+
+        # return context_layer, attn_data
         return context_layer
 
 
@@ -403,8 +417,11 @@ class BertAttention(nn.Module):
         self.output = BertSelfOutput(config)
 
     def forward(self, input_tensor, attention_mask):
+        # TODO-- self.visualization should be open by hand 
+        # self_output, attention_probs = self.self(input_tensor, attention_mask)
         self_output = self.self(input_tensor, attention_mask)
         attention_output = self.output(self_output, input_tensor)
+        # return attention_output, attention_probs
         return attention_output
 
 
@@ -447,9 +464,14 @@ class BertLayer(nn.Module):
         self.output = BertOutput(config)
 
     def forward(self, hidden_states, attention_mask):
-        attention_output = self.attention(hidden_states, attention_mask)
+        # TODO-- self.visualization should be open by hand 
+        # attention_output, attention_probs = self.attention(
+        attention_output = self.attention(
+            hidden_states, attention_mask
+        )
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)
+        # return layer_output, attention_probs
         return layer_output
 
 
@@ -492,15 +514,15 @@ class BertLMPredictionHead(nn.Module):
         hidden_states = self.decoder(hidden_states) + self.bias
         return hidden_states
 
+# not used
+# class BertOnlyMLMHead(nn.Module):
+#     def __init__(self, config, bert_model_embedding_weights):
+#         super().__init__()
+#         self.predictions = BertLMPredictionHead(config, bert_model_embedding_weights)
 
-class BertOnlyMLMHead(nn.Module):
-    def __init__(self, config, bert_model_embedding_weights):
-        super().__init__()
-        self.predictions = BertLMPredictionHead(config, bert_model_embedding_weights)
-
-    def forward(self, sequence_output):
-        prediction_scores = self.predictions(sequence_output)
-        return prediction_scores
+#     def forward(self, sequence_output):
+#         prediction_scores = self.predictions(sequence_output)
+#         return prediction_scores
 
 
 class BertPredictionHeadTransform(nn.Module):
@@ -817,7 +839,7 @@ class BertForMultiModalPreTraining(BertPreTrainedModel):
 
 class BaseBertForVLTasks(BertPreTrainedModel):
     def __init__(self, config, num_labels, dropout_prob=0.1):
-        super(BaseBertForVLTasks, self).__init__(config)
+        super().__init__(config)
         self.num_labels = num_labels
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(dropout_prob)
