@@ -25,7 +25,10 @@ export GCDA_MONITOR=1
 export TF_CPP_VMODULE="poplar_compiler=1"
 export TF_POPLAR_FLAGS="--max_compilation_threads=40 --executable_cache_path=/<your_cachedir>"
 export TMPDIR="/<your_tmpdir>"
-export POPLAR_LOG_LEVEL=INFO
+export POPART_LOG_LEVEL=DEBUG
+export POPTORCH_LOG_LEVEL=DEBUG_IR
+export POPLAR_LOG_LEVEL=DEBUG
+export POPLAR_ENGINE_OPTIONS='{"autoReport.all":"true", "autoReport.directory":"./reports"}'
 
 source /<your_popart_path>/enable.sh
 source /<your_poplar_path>/enable.sh
@@ -89,7 +92,7 @@ get models, you can put the model in other places if you want
 # cd vilbert-multi-task/
 # mkdir save
 # cd save 
-# mdkir origin
+# mkdir origin
 # cd origin
 wget https://dl.fbaipublicfiles.com/vilbert-multi-task/pretrained_model.bin
 wget https://dl.fbaipublicfiles.com/vilbert-multi-task/multi_task_model.bin
@@ -111,10 +114,23 @@ you can run a example by this bash script `run_retrevalFlicker30K_task.sh` .
 bash run_retrevalFlicker30K_task.sh
 bash run_retrevalFlicker30K_task.sh --enable_IPU
 bash run_retrevalFlicker30K_task.sh --enable_IPU --use_fake_data
+nohup bash run_retrevalFlicker30K_task.sh --enable_IPU --use_fake_data > train.log 2>&1 &
 ```
 the code for training finetune of RetrievalFlickr30k is a simplified version of multi-tasks training which can help understand ViL BERT easier. The training loop is in vilbert-multi-task/train_retrieval_ipu.py.
 
 And the pipelinedModel is in vilbert-multi-task/vilbert_ipu/RetrievalFlickr30k.py
 
 
+31 08
+31 56
 
+12
+59
+42
+100*28
+
+48
+
+100 * 21
+
+43.75

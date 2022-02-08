@@ -29,6 +29,8 @@ from torch._six import inf
 
 import pdb
 
+from vilbert import TF_WEIGHTS_NAME, WEIGHTS_NAME
+
 PYTORCH_PRETRAINED_BERT_CACHE = Path(
     os.getenv("PYTORCH_PRETRAINED_BERT_CACHE", Path.home() / ".pytorch_pretrained_bert")
 )

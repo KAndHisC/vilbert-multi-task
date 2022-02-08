@@ -144,7 +144,8 @@ def main():
         args = args,
         num_labels=num_labels
     )
-    # model = model.half()
+    # TODO-- "pow" not implemented for 'Half'
+    model.half()
 
     optimizer, warmup_scheduler, lr_scheduler, lr_reduce_list, warmpu_steps = task_utils_ipu.GetOptimizer(
             args, model, base_lr, median_num_iter
@@ -227,12 +228,13 @@ def main():
             if is_forward:  
                 
                 if isIPU:
-                    score, loss = train_model(batch) 
+                    result, loss = train_model(batch) 
                     # IPU will auto backforward
                 else:
-                    score, loss = model(batch)   #  test in CPU first to make sure there is no error in model
+                    result, loss = model(batch)   #  test in CPU first to make sure there is no error in model
                     loss.backward() 
-                
+                preds, target = result 
+                score = preds.eq(target).sum().float() / task_dataloader_train.batch_size
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if not isIPU:
                         optimizer.step() 

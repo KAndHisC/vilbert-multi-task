@@ -26,10 +26,13 @@ def get_options(config=None)->poptorch.Options:
         raise RuntimeError("This version of BERT requires an IPU Mk2 system to run.")
     ## TODO--
     custom_opts = poptorch.Options()
-    custom_opts.deviceIterations(1)
+    custom_opts.deviceIterations(4)
     custom_opts.replicationFactor(1)
     custom_opts.Training.gradientAccumulation(7)
     custom_opts.randomSeed(99)
+    custom_opts.setAvailableMemoryProportion({"IPU0":0.5, "IPU1":0.7, "IPU2":0.7, "IPU3":0.5})
+    stategy = poptorch.PipelinedExecution(poptorch.AutoStage.AutoIncrement)
+    custom_opts.setExecutionStrategy(stategy)
     return custom_opts
 
 opts = get_options()
