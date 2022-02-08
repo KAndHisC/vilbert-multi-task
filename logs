@@ -1,0 +1,51 @@
+[06:53:34.923] [poptorch:cpp] [error] ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+Epoch:   0%|                                                                                                                         | 0/20 [1:01:53<?, ?it/s]
+[06:53:34.952] [poptorch::python] [critical] RuntimeError: ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+
+Traceback (most recent call last):
+  File "train_tasks_ipu.py", line 652, in <module>
+    main()
+  File "train_tasks_ipu.py", line 539, in main
+    tuple(task_iter_train[task_id].next()) # get the batch
+  File "/mnt/scratch001/custeng-cn-scratch/takiw/env/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 577, in __call__
+    self._compile(in_tensors)
+  File "/mnt/scratch001/custeng-cn-scratch/takiw/env/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 366, in _compile
+    self._compileWithTrace(trace_args)
+  File "/mnt/scratch001/custeng-cn-scratch/takiw/env/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 338, in _compileWithTrace
+    self._executable = poptorch_core.compileWithTrace(*trace_args)
+RuntimeError: ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+
+07/02/2021 06:53:34 - critical - poptorch::python -   RuntimeError: ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+
+Traceback (most recent call last):
+  File "train_tasks_ipu.py", line 652, in <module>
+    main()
+  File "train_tasks_ipu.py", line 539, in main
+    score, loss = train_model(tuple(batch)) 
+  File "/mnt/scratch001/custeng-cn-scratch/takiw/env/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 577, in __call__
+    self._compile(in_tensors)
+  File "/mnt/scratch001/custeng-cn-scratch/takiw/env/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 366, in _compile
+    self._compileWithTrace(trace_args)
+  File "/mnt/scratch001/custeng-cn-scratch/takiw/env/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 338, in _compileWithTrace
+    self._executable = poptorch_core.compileWithTrace(*trace_args)
+RuntimeError: ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+
+
+
+
+
+
+nohup python train_retrieval_ipu.py --enable_IPU --bert_model bert-base-uncased --from_pretrained save/origin/pretrained_model.bin --output_dir save --config_file config/bert_base_6layer_6conect.json --tasks 8 --lr_scheduler 'warmup_linear' --train_iter_gap 4 --task_specific_tokens --save_name flickr30k_finetune_copy >> out.log 2>&1 &
+
+
+
+nohup bash run_retrevalFlicker30K_task.sh --enable_IPU >> out.log 2>&1 &
+
+66
+81.5
+
+
+3
+7
+2
+5

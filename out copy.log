@@ -1,0 +1,180 @@
+
+2021-07-06 04:27:09.383636: I tensorflow/compiler/plugin/poplar/driver/poplar_platform.cc:44] Poplar version: 2.1.0 (bb92605dfd) Poplar package: ce995e299d
+Warning, backtrace signal handler for signal 11 overwrote previous handler.
+Warning, backtrace signal handler for signal 6 overwrote previous handler.
+Warning, backtrace signal handler for signal 7 overwrote previous handler.
+Warning, backtrace signal handler for signal 4 overwrote previous handler.
+Warning, backtrace signal handler for signal 8 overwrote previous handler.
+07/06/2021 04:27:11 - INFO - vilbert.vilbert -   Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex .
+07/06/2021 04:27:11 - INFO - pytorch_transformers.tokenization_utils -   loading file https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt from cache at /home/takiw/.cache/torch/pytorch_transformers/26bc1ad6c0ac742e9b52263248f6d0f00068293b33709fae12320c0e35ccfbbb.542ce4285a40d23a559526243235df47c5f75c197f04f37d1a0c124c32c9a084
+07/06/2021 04:27:11 - INFO - vilbert_ipu.task_utils_ipu -   Loading RetrievalFlickr30k Dataset with batch size 8
+07/06/2021 04:27:33 - INFO - vilbert.utils -   logging file at: save/RetrievalFlickr30k_bert_base_6layer_6conect-flickr30k_finetune_copy/logs
+07/06/2021 04:27:33 - INFO - vilbert.utils -   loading weights file save/origin/pretrained_model.bin
+07/06/2021 04:27:39 - INFO - vilbert.utils -   Weights of VILBertForVLTasks not initialized from pretrained model: ['bert.embeddings.task_embeddings.weight', 'vil_prediction.logit_fc.0.weight', 'vil_prediction.logit_fc.0.bias', 'vil_prediction.logit_fc.2.weight', 'vil_prediction.logit_fc.2.bias', 'vil_prediction.logit_fc.3.weight', 'vil_prediction.logit_fc.3.bias', 'vil_prediction_gqa.logit_fc.0.weight', 'vil_prediction_gqa.logit_fc.0.bias', 'vil_prediction_gqa.logit_fc.2.weight', 'vil_prediction_gqa.logit_fc.2.bias', 'vil_prediction_gqa.logit_fc.3.weight', 'vil_prediction_gqa.logit_fc.3.bias', 'vil_binary_prediction.logit_fc.0.weight', 'vil_binary_prediction.logit_fc.0.bias', 'vil_binary_prediction.logit_fc.2.weight', 'vil_binary_prediction.logit_fc.2.bias', 'vil_binary_prediction.logit_fc.3.weight', 'vil_binary_prediction.logit_fc.3.bias', 'vil_logit.weight', 'vil_logit.bias', 'vil_tri_prediction.weight', 'vil_tri_prediction.bias', 'vision_logit.weight', 'vision_logit.bias', 'linguisic_logit.weight', 'linguisic_logit.bias']
+Epoch:   0%|          | 0/20 [00:00<?, ?it/s]loading entries from data/datasets/flickr30k/cache/RetrievalFlickr30k_train_30_cleaned.pkl
+loading entries from data/datasets/flickr30k/cache/RetrievalFlickr30k_val_30_cleaned.pkl
+559 559
+***** Running training *****
+  Num Iters:  {'TASK8': 17560}
+  Batch size:  {'TASK8': 8}
+  Num steps: 351200
+enable_IPU:  True
+[04:28:30.004] [poptorch:cpp] [warning] Unused input
+[04:28:30.019] [poptorch:cpp] [warning] %attention_mask.2 : Long(32:31, 31:1, requires_grad=0, device=cpu) = aten::cat(%6235, %10961), scope: __module.model/__module.model.model/__module.model.model.bert # /localdata/takiw/workspace/vilbert-multi-task/vilbert/vilbert.py:1335:0: torch.int64 is not supported natively on IPU, loss of range/precision may occur
+[04:28:30.036] [poptorch:cpp] [warning] %9790 : Float(8:1, requires_grad=1, device=cpu), %preds : Long(8:1, requires_grad=0, device=cpu) = aten::max(%input.259, %10961, %10995), scope: __module.model # /localdata/takiw/workspace/vilbert-multi-task/vilbert_ipu/RetrievalFlickr30k.py:105:0: torch.int64 is not supported natively on IPU, loss of range/precision may occur
+[04:28:30.036] [poptorch:cpp] [warning] %9793 : Long(requires_grad=0, device=cpu) = aten::sum(%9792, %6187), scope: __module.model # /localdata/takiw/workspace/vilbert-multi-task/vilbert_ipu/RetrievalFlickr30k.py:107:0: torch.int64 is not supported natively on IPU, loss of range/precision may occur
+04:28:56.260 88297 PO:TARGET   [E] Failed to attach to ipu(s)
+
+Graph compilation:   0%|          | 0/100 [00:00<?][A
+Graph compilation:   3%|▎         | 3/100 [51:31<27:46:10][A05:20:29.044 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:29.047 88297 PO:UTIL     [I] Using temp directory '/localdata/takiw/tmp/'
+
+Graph compilation:   4%|▍         | 4/100 [51:41<19:19:02][A05:20:38.916 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.951 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 34 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.951 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.953 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.953 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.955 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.955 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.957 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.957 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.959 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.959 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.962 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.963 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.965 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.965 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.967 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.967 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.969 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.969 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.971 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.971 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.973 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.973 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.975 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.975 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.977 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.977 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.979 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.979 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.982 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.982 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.985 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.985 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.987 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.987 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.989 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.989 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.991 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.991 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.993 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.994 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.995 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.996 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.997 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:38.998 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:38.999 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.000 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.002 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.002 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.004 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.004 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.006 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.006 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.008 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.008 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.010 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.010 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.012 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.012 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.014 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.014 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.016 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.016 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.018 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.018 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.020 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.020 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.022 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.022 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.024 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.024 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.026 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.026 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.028 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.029 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.031 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.031 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.062 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 31 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.062 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.064 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.065 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.067 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.067 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.069 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.069 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.072 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 3 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.073 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.075 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.075 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.077 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.077 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.079 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.079 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.081 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.081 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.083 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.083 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.085 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.085 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.087 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.088 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.090 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.090 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.091 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.092 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.093 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.094 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.095 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 1 ms; user 1 ms; sys 0 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+05:20:39.096 88297 PO:GRAPH    [I] Starting phase: graphConstruction
+05:20:39.098 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 2 ms; user 0 ms; sys 1 ms; diff RSS: 0 MB; total RSS: 12560.9 MB)
+
+Graph compilation:   7%|▋         | 7/100 [51:56<13:08:14][A
+Graph compilation:  17%|█▋        | 17/100 [51:56<8:12:26][A
+Graph compilation:  21%|██        | 21/100 [52:12<5:29:43][A
+Graph compilation:  22%|██▏       | 22/100 [52:25<3:52:45][A
+Graph compilation:  23%|██▎       | 23/100 [52:25<2:40:53][A
+Graph compilation:  24%|██▍       | 24/100 [52:25<1:51:13][A05:21:39.230 88297 PO:GRAPH    [I] Ending phase: graphConstruction (real 70183 ms; user 259747 ms; sys 32057 ms; diff RSS: 375.41 MB; total RSS: 12933.5 MB)
+[05:21:39.688] [poptorch:cpp] [error] ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+[05:21:39.690] [poptorch::python] [critical] RuntimeError: ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+
+Traceback (most recent call last):
+  File "train_retrieval_ipu.py", line 409, in <module>
+    main()
+  File "train_retrieval_ipu.py", line 312, in main
+    score, loss = train_model(batch)
+  File "/localdata/takiw/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 577, in __call__
+    self._compile(in_tensors)
+  File "/localdata/takiw/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 366, in _compile
+    self._compileWithTrace(trace_args)
+  File "/localdata/takiw/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 338, in _compileWithTrace
+    self._executable = poptorch_core.compileWithTrace(*trace_args)
+RuntimeError: ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+
+07/06/2021 05:21:39 - critical - poptorch::python -   RuntimeError: ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+
+Traceback (most recent call last):
+  File "train_retrieval_ipu.py", line 409, in <module>
+    main()
+  File "train_retrieval_ipu.py", line 312, in main
+    score, loss = train_model(batch)
+  File "/localdata/takiw/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 577, in __call__
+    self._compile(in_tensors)
+  File "/localdata/takiw/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 366, in _compile
+    self._compileWithTrace(trace_args)
+  File "/localdata/takiw/miniconda3/envs/vilbert-mt/lib/python3.6/site-packages/poptorch/_poplar_executor.py", line 338, in _compileWithTrace
+    self._executable = poptorch_core.compileWithTrace(*trace_args)
+RuntimeError: ERROR in poptorch/python/poptorch.cpp:1141: 'std::runtime_error' exception: Arguments of binary operator in expression do not have the same type Context: LowerToPopart::compile  Compiler::compileAndPrepareDevice popart::Session::prepareDevice: Poplar compilation
+
+

@@ -1,0 +1,15 @@
+(torch.rand(batch_size, 4, 101, 2048), torch.rand(batch_size, 4, 101, 5), torch.randint(0, 4, [batch_size, 4, 101]), torch.randint(0, 4, [batch_size, 4, 30]), torch.randint(0, 4, [batch_size]), torch.randint(0, 4, [batch_size, 4, 30]), torch.randint(0, 4, [batch_size, 4, 30]), torch.rand(batch_size, 4, 101, 30), torch.randint(0, 4, [batch_size]))
+
+f f i
+ i i i 
+ i f i
+
+
+
+
+
+
+
+
+
+
