@@ -1,0 +1,243 @@
+# Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#----------------------------------------------------------------------------------
+defaults: &defaults
+  random_seed: 42
+  encoder_start_ipu: 0
+  dataloader_workers: 8
+  async_dataloader: True
+  file_buffer_size: 10
+  ipus_per_replica: 4
+  custom_ops: True
+  synthetic_data: False
+  profile: False
+  profile_dir: profile
+  optimizer: AdamW
+  weight_decay: 0.0
+  pred_head_transform: True
+  embedding_serialization_factor: 1
+  recompute_checkpoint_every_layer: True
+  enable_half_partials: True
+  layer_norm_eps: 0.001
+  attention_probs_dropout_prob: 0.0
+  dropout_prob: 0.1
+  mask_tokens: 20
+  sequence_length: 128
+  embedding_size: 768
+#----------------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------------
+vit_base_16: &vit_base_16
+  <<: *defaults
+
+  # Execution
+  batch_size: 15
+  training_steps: 10000
+  batches_per_step: 1
+  replication_factor: 4
+  gradient_accumulation: 128
+  profile: False
+  precision: '16.16'
+  layers_on_ipu: [0,0,1,1,1,1,2,2,2,2,3,3]
+  enable_rts: False
+  wandb: False
+  checkpoint_save_steps: 500
+
+  # Model
+  hidden_size: 768
+  num_hidden_layers: 12
+  num_attention_heads: 12
+  layers_per_ipu: 4
+  matmul_proportion: [0.6, 0.6, 0.6, 0.6]
+  mlp_dim: 3072
+  patches_size: 16
+  num_classes: 10
+
+  # Optimizer
+  optimizer: SGD
+  lr_warmup: 0.28
+  warmup_steps: 500
+  lr_schedule: consine
+  learning_rate: 0.03
+  loss_scaling: 1.0
+  weight_decay: 0.0
+  momentum : 0.9
+
+  # Dataset
+  dataset: cifar10
+  checkpoint_file: "checkpoint/ViT-B_16.npz"
+  checkpoint_dir: "output/ckpt"
+
+vit_base_16_downstream: &vit_base_16_downstream
+  <<: *defaults
+
+  # Execution
+  batch_size: 8
+  training_steps: 10000
+  batches_per_step: 1
+  replication_factor: 4
+  gradient_accumulation: 16
+  profile: False
+  precision: '16.16'
+  layers_on_ipu: [0,0,1,1,1,1,2,2,2,2,3,3]
+  enable_rts: True
+  wandb: True
+  checkpoint_save_steps: 500
+
+  # Model
+  hidden_size: 768
+  num_hidden_layers: 12
+  num_attention_heads: 12
+  layers_per_ipu: 4
+  matmul_proportion: [0.6, 0.6, 0.6, 0.6]
+  mlp_dim: 3072
+  patches_size: 16
+  num_classes: 10
+
+  # Optimizer
+  optimizer: SGD
+  lr_warmup: 0.28
+  warmup_steps: 500
+  lr_schedule: consine
+  learning_rate: 0.03
+  loss_scaling: 1.0
+  weight_decay: 0.0
+  momentum : 0.9
+
+  # Dataset
+  dataset: cifar10
+  input_files: "/localdata/ai-datasets/imagenet-raw-data/"
+  checkpoint_file: "checkpoint/ViT-B_16.npz"
+  checkpoint_dir: "output/ckpt"
+
+vit_base_16_downstream_valid: &vit_base_16_downstream_valid
+  <<: *defaults
+
+  # Execution
+  batch_size: 8
+  training_steps: 10666
+  batches_per_step: 1
+  replication_factor: 1
+  gradient_accumulation: 1
+  profile: False
+  precision: '16.16'
+  layers_on_ipu: [0,0,1,1,1,1,2,2,2,2,3,3]
+  checkpoint_save_steps: 1000
+
+  # Model
+  hidden_size: 768
+  num_hidden_layers: 12
+  num_attention_heads: 12
+  layers_per_ipu: 4
+  matmul_proportion: [0.6, 0.6, 0.6, 0.6]
+  mlp_dim: 3072
+  patches_size: 16
+  num_classes: 10
+
+  # Optimizer
+  optimizer: SGD
+  lr_warmup: 0.28
+  warmup_steps: 533
+  lr_schedule: linear
+  learning_rate: 0.03
+  loss_scaling: 1.0
+  weight_decay: 0.0
+  momentum : 0.9
+
+  # Dataset
+  dataset: cifar10
+  # input_files: "/localdata/ai-datasets/imagenet-raw-data/"
+  checkpoint_file: "/localdata/xihuaiw/pytorch/public_examples/applications/pytorch/vit/output/ckpt/cifar10_bert_L_12_H_768_A_12_seqlen_128_epoch_55.pt"
+  checkpoint_dir: "output/ckpt"
+
+vit_test: &vit_test
+  <<: *defaults
+
+  # Execution
+  batch_size: 1
+  training_steps: 100
+  batches_per_step: 1
+  replication_factor: 1
+  gradient_accumulation: 8
+  profile: False
+  precision: '16.16'
+  layers_on_ipu: [0,1,2,3]
+
+  # Model
+  hidden_size: 768
+  num_hidden_layers: 4
+  num_attention_heads: 4
+  layers_per_ipu: 1
+  matmul_proportion: [0.6, 0.6, 0.6, 0.6]
+  mlp_dim: 3072
+  patches_size: 16
+
+  # Optimizer
+  optimizer: SGD
+  lr_warmup: 0.28
+  warmup_steps: 5
+  lr_schedule: linear
+  learning_rate: 0.03
+  loss_scaling: 1.0
+  weight_decay: 0.0
+  momentum : 0.9
+
+  # Dataset
+  dataset: cifar10
+  input_files: "/localdata/ai-datasets/imagenet-raw-data/"
+  checkpoint_file: "checkpoint/ViT-B_16.npz"
+  checkpoint_dir: "output/ckpt"
+#----------------------------------------------------------------------------------
+
+vil_bert: &vil_bert
+  <<: *defaults
+
+  # Execution
+  batch_size: 1
+  training_steps: 1
+  batches_per_step: 1
+  replication_factor: 1
+  gradient_accumulation: 1
+  profile: False
+  precision: '16.16'
+  layers_on_ipu: [0,0,1,1,1,1,2,2,2,2,3,3]
+  enable_rts: False
+  wandb: False
+  checkpoint_save_steps: 500
+
+  # Model
+  hidden_size: 768
+  num_hidden_layers: 12
+  num_attention_heads: 12
+  layers_per_ipu: 4
+  matmul_proportion: [0.6, 0.6, 0.6, 0.6]
+  mlp_dim: 3072
+  patches_size: 16
+  num_classes: 10
+
+  # Optimizer
+  optimizer: AdamW
+  lr_warmup: 0.28
+  warmup_steps: 500
+  lr_schedule: linear
+  learning_rate: 0.03
+  loss_scaling: 1.0
+  weight_decay: 0.0
+  momentum : 0.9
+
+  # Dataset
+  dataset: cifar10
+  checkpoint_file: "checkpoint/ViT-B_16.npz"
+  checkpoint_dir: "output/ckpt"

@@ -1229,12 +1229,13 @@ class BertPreTrainingHeads(nn.Module):
         self, sequence_output_t, sequence_output_v, pooled_output_t, pooled_output_v
     ):
 
-        if self.fusion_method == "sum":
-            pooled_output = self.dropout(pooled_output_t + pooled_output_v)
-        elif self.fusion_method == "mul":
-            pooled_output = self.dropout(pooled_output_t * pooled_output_v)
-        else:
-            assert False
+        # if self.fusion_method == "sum":
+        #     pooled_output = self.dropout(pooled_output_t + pooled_output_v)
+        # elif self.fusion_method == "mul":
+        #     pooled_output = self.dropout(pooled_output_t * pooled_output_v)
+        # else:
+        #     assert False
+        pooled_output = self.dropout(pooled_output_t * pooled_output_v)
 
         prediction_scores_t = self.predictions(sequence_output_t)
         seq_relationship_score = self.bi_seq_relationship(pooled_output)
@@ -1387,6 +1388,7 @@ class BertModel(BertPreTrainedModel):
             output_all_encoded_layers=output_all_encoded_layers,
             output_all_attention_masks=output_all_attention_masks,
         )
+        
 
         sequence_output_t = encoded_layers_t[-1]
         sequence_output_v = encoded_layers_v[-1]
@@ -1666,6 +1668,7 @@ class VILBertForVLTasks(BertPreTrainedModel):
             output_all_encoded_layers=output_all_encoded_layers,
             output_all_attention_masks=output_all_attention_masks,
         )
+        
 
         vil_prediction = 0
         vil_logit = 0
@@ -1678,13 +1681,20 @@ class VILBertForVLTasks(BertPreTrainedModel):
         linguisic_prediction, vision_prediction, vil_binary_prediction = self.cls(
             sequence_output_t, sequence_output_v, pooled_output_t, pooled_output_v
         )
+        # linguisic_prediction = torch.rand(4, 30, 30522)
+        # vision_prediction = torch.rand(4, 101, 1601)
+        # vil_binary_prediction = torch.rand(4, 2)
+        # print("type %s and shape %s",linguisic_prediction.dtype, linguisic_prediction.shape)
+        # print("type %s and shape %s",vision_prediction.dtype, vision_prediction.shape)
+        # print("type %s and shape %s",vil_binary_prediction.dtype, vil_binary_prediction.shape)
 
-        if self.fusion_method == "sum":
-            pooled_output = self.dropout(pooled_output_t + pooled_output_v)
-        elif self.fusion_method == "mul":
-            pooled_output = self.dropout(pooled_output_t * pooled_output_v)
-        else:
-            assert False
+        # if self.fusion_method == "sum":
+        #     pooled_output = self.dropout(pooled_output_t + pooled_output_v)
+        # elif self.fusion_method == "mul":
+        #     pooled_output = self.dropout(pooled_output_t * pooled_output_v)
+        # else:
+        #     assert False
+        pooled_output = self.dropout(pooled_output_t * pooled_output_v)
 
         vil_prediction = self.vil_prediction(pooled_output)
         vil_prediction_gqa = self.vil_prediction_gqa(pooled_output)
