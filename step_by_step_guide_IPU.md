@@ -121,4 +121,16 @@ the code for training finetune of RetrievalFlickr30k is a simplified version of 
 And the pipelinedModel is in vilbert-multi-task/vilbert_ipu/RetrievalFlickr30k.py
 
 
+31 08
+31 56
 
+12
+59
+42
+100*28
+
+48
+
+100 * 21
+
+43.75

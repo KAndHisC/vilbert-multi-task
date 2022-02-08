@@ -145,7 +145,7 @@ def main():
         num_labels=num_labels
     )
     # TODO-- "pow" not implemented for 'Half'
-    # model = model.half()
+    model.half()
 
     optimizer, warmup_scheduler, lr_scheduler, lr_reduce_list, warmpu_steps = task_utils_ipu.GetOptimizer(
             args, model, base_lr, median_num_iter

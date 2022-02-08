@@ -17,7 +17,6 @@ import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
 import torch.nn.functional as F
-from torch.nn.utils.weight_norm import weight_norm
 from vilbert import BERT_PRETRAINED_MODEL_ARCHIVE_MAP, GeLU
 from vilbert.basebert import BertLayerNorm
 

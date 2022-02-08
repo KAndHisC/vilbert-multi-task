@@ -93,19 +93,19 @@ class PipelinedWithLossForRetrievalFlickr30k(nn.Module):
         # 3
         self.model.bert.t_pooler = poptorch.BeginBlock(self.model.bert.t_pooler, "t_pooler", ipu_id=3) # 1m
         self.model.bert.v_pooler = poptorch.BeginBlock(self.model.bert.v_pooler, "v_pooler", ipu_id=3) # 1m
-        self.model.cls = poptorch.BeginBlock(self.model.cls, "cls", ipu_id=3) # 3m
+        self.model.cls = poptorch.BeginBlock(RecomputationCheckpoint(self.model.cls), "cls", ipu_id=3) # 3m
 
-        self.model.dropout = poptorch.BeginBlock(self.model.dropout, "dropout", ipu_id=3)
+        # self.model.dropout = poptorch.BeginBlock(self.model.dropout, "dropout", ipu_id=3)
         
-        self.model.vil_prediction = poptorch.BeginBlock(RecomputationCheckpoint(self.model.vil_prediction), "vil_prediction", ipu_id=3) # 8m
-        self.model.vil_prediction_gqa = poptorch.BeginBlock(self.model.vil_prediction_gqa, "vil_prediction_gqa", ipu_id=3) # 5m
-        self.model.vil_binary_prediction = poptorch.BeginBlock(self.model.vil_binary_prediction, "vil_binary_prediction", ipu_id=3) # 4m
+        # self.model.vil_prediction = poptorch.BeginBlock(RecomputationCheckpoint(self.model.vil_prediction), "vil_prediction", ipu_id=3) # 8m
+        # self.model.vil_prediction_gqa = poptorch.BeginBlock(RecomputationCheckpoint(self.model.vil_prediction_gqa), "vil_prediction_gqa", ipu_id=3) # 5m
+        # self.model.vil_binary_prediction = poptorch.BeginBlock(RecomputationCheckpoint(self.model.vil_binary_prediction), "vil_binary_prediction", ipu_id=3) # 4m
 
-        self.model.vil_logit = poptorch.BeginBlock(self.model.vil_logit, "vil_logit", ipu_id=3)
+        # self.model.vil_logit = poptorch.BeginBlock(self.model.vil_logit, "vil_logit", ipu_id=3)
 
-        self.model.vil_tri_prediction = poptorch.BeginBlock(self.model.vil_tri_prediction, "vil_tri_prediction", ipu_id=3)
-        self.model.vision_logit = poptorch.BeginBlock(self.model.vision_logit, "vision_logit", ipu_id=3)
-        self.model.linguisic_logit = poptorch.BeginBlock(self.model.linguisic_logit, "linguisic_logit", ipu_id=3)
+        # self.model.vil_tri_prediction = poptorch.BeginBlock(self.model.vil_tri_prediction, "vil_tri_prediction", ipu_id=3)
+        # self.model.vision_logit = poptorch.BeginBlock(self.model.vision_logit, "vision_logit", ipu_id=3)
+        # self.model.linguisic_logit = poptorch.BeginBlock(self.model.linguisic_logit, "linguisic_logit", ipu_id=3)
         
         self.loss = nn.CrossEntropyLoss()
 
